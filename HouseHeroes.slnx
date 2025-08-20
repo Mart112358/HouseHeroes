@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HouseHeroes.ApiService/HouseHeroes.ApiService.csproj" />
+    <Project Path="src/HouseHeroes.AppHost/HouseHeroes.AppHost.csproj" />
+    <Project Path="src/HouseHeroes.ServiceDefaults/HouseHeroes.ServiceDefaults.csproj" />
+    <Project Path="src/HouseHeroes.Web/HouseHeroes.Web.csproj" />
+  </Folder>
+</Solution>
