@@ -1,8 +1,13 @@
+using Microsoft.EntityFrameworkCore;
+using HouseHeroes.ApiService.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
 
+// Add database context
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 // Add services to the container.
 builder.Services.AddProblemDetails();
 
