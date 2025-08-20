@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using HouseHeroes.ApiService.Data;
+using HouseHeroes.ApiService.GraphQL.Queries;
+using HouseHeroes.ApiService.GraphQL.Mutations;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
@@ -8,6 +11,16 @@ builder.AddServiceDefaults();
 // Add database context
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Add GraphQL
+builder.Services
+    .AddGraphQLServer()
+    .AddQueryType<Query>()
+    .AddMutationType<Mutation>()
+    .AddProjections()
+    .AddFiltering()
+    .AddSorting();
+
 // Add services to the container.
 builder.Services.AddProblemDetails();
 
@@ -23,6 +36,9 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+// Map GraphQL endpoint
+app.MapGraphQL();
 
 string[] summaries = ["Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"];
 
