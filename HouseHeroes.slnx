@@ -4,6 +4,5 @@
     <Project Path="src/HouseHeroes.AppHost/HouseHeroes.AppHost.csproj" />
     <Project Path="src/HouseHeroes.Mobile/HouseHeroes.Mobile.csproj" />
     <Project Path="src/HouseHeroes.ServiceDefaults/HouseHeroes.ServiceDefaults.csproj" />
-    <Project Path="src/HouseHeroes.Web/HouseHeroes.Web.csproj" />
   </Folder>
 </Solution>

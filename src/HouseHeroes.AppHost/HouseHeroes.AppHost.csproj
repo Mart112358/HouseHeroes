@@ -12,7 +12,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HouseHeroes.ApiService\HouseHeroes.ApiService.csproj" />
-    <ProjectReference Include="..\HouseHeroes.Web\HouseHeroes.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>
