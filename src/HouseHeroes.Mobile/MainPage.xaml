@@ -1,8 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:HouseHeroes.Mobile.ViewModels"
+             xmlns:models="clr-namespace:HouseHeroes.Mobile"
              x:Class="HouseHeroes.Mobile.MainPage"
-             Title="House Heroes">
+             Title="House Heroes"
+             x:DataType="vm:TasksViewModel">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -26,7 +29,8 @@
         <CollectionView Grid.Row="1" 
                         x:Name="TasksCollectionView"
                         ItemsSource="{Binding Tasks}"
-                        Margin="20,0">
+                        Margin="20,0"
+                        x:DataType="vm:TasksViewModel">
             <CollectionView.EmptyView>
                 <StackLayout VerticalOptions="Center" HorizontalOptions="Center">
                     <Label Text="No tasks found" 
@@ -40,9 +44,10 @@
             </CollectionView.EmptyView>
 
             <CollectionView.ItemTemplate>
-                <DataTemplate>
+                <DataTemplate x:DataType="models:IGetTasks_Tasks">
                     <Grid Padding="15" RowSpacing="5">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -88,7 +93,8 @@
                           IsVisible="{Binding IsBusy}"
                           IsRunning="{Binding IsBusy}"
                           VerticalOptions="Center"
-                          HorizontalOptions="Center" />
+                          HorizontalOptions="Center"
+                          x:DataType="vm:TasksViewModel" />
     </Grid>
 
 </ContentPage>
