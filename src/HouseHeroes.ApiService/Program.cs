@@ -1,16 +1,14 @@
-using Microsoft.EntityFrameworkCore;
 using HouseHeroes.ApiService.Data;
 using HouseHeroes.ApiService.GraphQL.Queries;
 using HouseHeroes.ApiService.GraphQL.Mutations;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
 
-// Add database context
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.AddNpgsqlDbContext<AppDbContext>("househeroes");
 
 // Add GraphQL
 builder.Services
@@ -40,27 +38,17 @@ if (app.Environment.IsDevelopment())
 // Map GraphQL endpoint
 app.MapGraphQL();
 
-string[] summaries = ["Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"];
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
 app.MapDefaultEndpoints();
+
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await context.Database.MigrateAsync();
+    await DatabaseSeeder.SeedAsync(context);
+}
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+
+
