@@ -1,0 +1,15 @@
+mutation AssignTask($input: AssignTaskInput!) {
+  assignTask(input: $input) {
+    taskId
+    userId
+    task {
+      id
+      title
+    }
+    user {
+      id
+      firstName
+      lastName
+    }
+  }
+}

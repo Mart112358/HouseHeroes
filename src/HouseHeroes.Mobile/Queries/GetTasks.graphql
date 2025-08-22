@@ -1,0 +1,28 @@
+query GetTasks {
+  tasks {
+    id
+    title
+    description
+    dueDate
+    isCompleted
+    completedAt
+    createdAt
+    createdBy {
+      id
+      firstName
+      lastName
+    }
+    family {
+      id
+      name
+    }
+    taskAssignments {
+      user {
+        id
+        firstName
+        lastName
+        role
+      }
+    }
+  }
+}

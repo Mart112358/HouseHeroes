@@ -1,0 +1,35 @@
+query GetFamilyById($id: UUID!) {
+  familyById(id: $id) {
+    id
+    name
+    createdAt
+    members {
+      id
+      email
+      firstName
+      lastName
+      role
+    }
+    tasks {
+      id
+      title
+      description
+      dueDate
+      isCompleted
+      completedAt
+      createdAt
+      createdBy {
+        id
+        firstName
+        lastName
+      }
+      taskAssignments {
+        user {
+          id
+          firstName
+          lastName
+        }
+      }
+    }
+  }
+}

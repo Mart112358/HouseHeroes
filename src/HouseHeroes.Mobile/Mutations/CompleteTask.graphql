@@ -1,0 +1,8 @@
+mutation CompleteTask($taskId: UUID!) {
+  completeTask(taskId: $taskId) {
+    id
+    title
+    isCompleted
+    completedAt
+  }
+}

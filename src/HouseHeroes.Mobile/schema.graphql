@@ -1,0 +1,277 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+input TaskAssignmentFilterInput {
+  and: [TaskAssignmentFilterInput!]
+  or: [TaskAssignmentFilterInput!]
+  taskId: UuidOperationFilterInput
+  userId: UuidOperationFilterInput
+  task: TaskFilterInput
+  user: UserFilterInput
+}
+
+input CreateFamilyInput {
+  name: String!
+}
+
+input TaskFilterInput {
+  and: [TaskFilterInput!]
+  or: [TaskFilterInput!]
+  id: UuidOperationFilterInput
+  familyId: UuidOperationFilterInput
+  title: StringOperationFilterInput
+  description: StringOperationFilterInput
+  createdById: UuidOperationFilterInput
+  dueDate: DateTimeOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  isCompleted: BooleanOperationFilterInput
+  completedAt: DateTimeOperationFilterInput
+  family: FamilyFilterInput
+  createdBy: UserFilterInput
+  taskAssignments: ListFilterInputTypeOfTaskAssignmentFilterInput
+}
+
+input TaskAssignmentSortInput {
+  taskId: SortEnumType
+  userId: SortEnumType
+  task: TaskSortInput
+  user: UserSortInput
+}
+
+input ListFilterInputTypeOfUserFilterInput {
+  all: UserFilterInput
+  none: UserFilterInput
+  some: UserFilterInput
+  any: Boolean
+}
+
+type Query {
+  families(where: FamilyFilterInput order: [FamilySortInput!]): [Family!]!
+  users(where: UserFilterInput order: [UserSortInput!]): [User!]!
+  tasks(where: TaskFilterInput order: [TaskSortInput!]): [Task!]!
+  taskAssignments(where: TaskAssignmentFilterInput order: [TaskAssignmentSortInput!]): [TaskAssignment!]!
+  familyById(id: UUID!): Family
+  userById(id: UUID!): User
+  taskById(id: UUID!): Task
+}
+
+input ListFilterInputTypeOfTaskFilterInput {
+  all: TaskFilterInput
+  none: TaskFilterInput
+  some: TaskFilterInput
+  any: Boolean
+}
+
+type Task {
+  id: UUID!
+  familyId: UUID!
+  title: String!
+  description: String
+  createdById: UUID!
+  dueDate: DateTime
+  createdAt: DateTime!
+  isCompleted: Boolean!
+  completedAt: DateTime
+  family: Family!
+  createdBy: User!
+  taskAssignments: [TaskAssignment!]!
+}
+
+input ListFilterInputTypeOfTaskAssignmentFilterInput {
+  all: TaskAssignmentFilterInput
+  none: TaskAssignmentFilterInput
+  some: TaskAssignmentFilterInput
+  any: Boolean
+}
+
+input BooleanOperationFilterInput {
+  eq: Boolean
+  neq: Boolean
+}
+
+type Family {
+  id: UUID!
+  name: String!
+  createdAt: DateTime!
+  members: [User!]!
+  tasks: [Task!]!
+}
+
+input CreateUserInput {
+  email: String!
+  passwordHash: String!
+  firstName: String!
+  lastName: String!
+  role: UserRole!
+  familyId: UUID!
+}
+
+type TaskAssignment {
+  taskId: UUID!
+  userId: UUID!
+  task: Task!
+  user: User!
+}
+
+input FamilySortInput {
+  id: SortEnumType
+  name: SortEnumType
+  createdAt: SortEnumType
+}
+
+enum UserRole {
+  GUARDIAN
+  CHILD
+}
+
+scalar UUID
+
+input CreateTaskInput {
+  familyId: UUID!
+  title: String!
+  description: String
+  createdById: UUID!
+  dueDate: DateTime
+}
+
+enum SortEnumType {
+  ASC
+  DESC
+}
+
+input UserRoleOperationFilterInput {
+  eq: UserRole
+  neq: UserRole
+  in: [UserRole!]
+  nin: [UserRole!]
+}
+
+input AssignTaskInput {
+  taskId: UUID!
+  userId: UUID!
+}
+
+input UserFilterInput {
+  and: [UserFilterInput!]
+  or: [UserFilterInput!]
+  id: UuidOperationFilterInput
+  email: StringOperationFilterInput
+  passwordHash: StringOperationFilterInput
+  firstName: StringOperationFilterInput
+  lastName: StringOperationFilterInput
+  role: UserRoleOperationFilterInput
+  familyId: UuidOperationFilterInput
+  family: FamilyFilterInput
+  createdTasks: ListFilterInputTypeOfTaskFilterInput
+  taskAssignments: ListFilterInputTypeOfTaskAssignmentFilterInput
+}
+
+input UserSortInput {
+  id: SortEnumType
+  email: SortEnumType
+  passwordHash: SortEnumType
+  firstName: SortEnumType
+  lastName: SortEnumType
+  role: SortEnumType
+  familyId: SortEnumType
+  family: FamilySortInput
+}
+
+type Mutation {
+  createFamily(input: CreateFamilyInput!): Family!
+  createUser(input: CreateUserInput!): User!
+  createTask(input: CreateTaskInput!): Task!
+  assignTask(input: AssignTaskInput!): TaskAssignment!
+  completeTask(taskId: UUID!): Task!
+  deleteTask(taskId: UUID!): Boolean!
+}
+
+"The `DateTime` scalar represents an ISO-8601 compliant date time type."
+scalar DateTime
+
+input FamilyFilterInput {
+  and: [FamilyFilterInput!]
+  or: [FamilyFilterInput!]
+  id: UuidOperationFilterInput
+  name: StringOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  members: ListFilterInputTypeOfUserFilterInput
+  tasks: ListFilterInputTypeOfTaskFilterInput
+}
+
+input StringOperationFilterInput {
+  and: [StringOperationFilterInput!]
+  or: [StringOperationFilterInput!]
+  eq: String
+  neq: String
+  contains: String
+  ncontains: String
+  in: [String]
+  nin: [String]
+  startsWith: String
+  nstartsWith: String
+  endsWith: String
+  nendsWith: String
+}
+
+input TaskSortInput {
+  id: SortEnumType
+  familyId: SortEnumType
+  title: SortEnumType
+  description: SortEnumType
+  createdById: SortEnumType
+  dueDate: SortEnumType
+  createdAt: SortEnumType
+  isCompleted: SortEnumType
+  completedAt: SortEnumType
+  family: FamilySortInput
+  createdBy: UserSortInput
+}
+
+type User {
+  id: UUID!
+  email: String!
+  passwordHash: String!
+  firstName: String!
+  lastName: String!
+  role: UserRole!
+  familyId: UUID!
+  family: Family!
+  createdTasks: [Task!]!
+  taskAssignments: [TaskAssignment!]!
+}
+
+input UuidOperationFilterInput {
+  eq: UUID
+  neq: UUID
+  in: [UUID]
+  nin: [UUID]
+  gt: UUID
+  ngt: UUID
+  gte: UUID
+  ngte: UUID
+  lt: UUID
+  nlt: UUID
+  lte: UUID
+  nlte: UUID
+}
+
+input DateTimeOperationFilterInput {
+  eq: DateTime
+  neq: DateTime
+  in: [DateTime]
+  nin: [DateTime]
+  gt: DateTime
+  ngt: DateTime
+  gte: DateTime
+  ngte: DateTime
+  lt: DateTime
+  nlt: DateTime
+  lte: DateTime
+  nlte: DateTime
+}
+
+"The purpose of the `cost` directive is to define a `weight` for GraphQL types, fields, and arguments. Static analysis can use these weights when calculating the overall cost of a query or response."
+directive @cost("The `weight` argument defines what value to add to the overall cost for every appearance, or possible appearance, of a type, field, argument, etc." weight: String!) on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | INPUT_FIELD_DEFINITION

@@ -1,0 +1,20 @@
+{
+  "schema": "schema.graphql",
+  "documents": "**/*.graphql",
+  "extensions": {
+    "strawberryShake": {
+      "name": "HouseHeroesClient",
+      "url": "http://localhost:5528/graphql",
+      "records": {
+        "inputs": false,
+        "entities": false
+      },
+      "transportProfiles": [
+        {
+          "default": "Http",
+          "subscription": "WebSocket"
+        }
+      ]
+    }
+  }
+}

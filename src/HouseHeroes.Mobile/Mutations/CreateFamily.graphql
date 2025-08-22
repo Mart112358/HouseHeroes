@@ -1,0 +1,7 @@
+mutation CreateFamily($input: CreateFamilyInput!) {
+  createFamily(input: $input) {
+    id
+    name
+    createdAt
+  }
+}

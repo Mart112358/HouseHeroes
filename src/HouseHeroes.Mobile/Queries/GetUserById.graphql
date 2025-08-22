@@ -1,0 +1,23 @@
+query GetUserById($id: UUID!) {
+  userById(id: $id) {
+    id
+    email
+    firstName
+    lastName
+    role
+    family {
+      id
+      name
+    }
+    taskAssignments {
+      task {
+        id
+        title
+        description
+        dueDate
+        isCompleted
+        completedAt
+      }
+    }
+  }
+}

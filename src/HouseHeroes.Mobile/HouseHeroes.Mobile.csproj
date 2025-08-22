@@ -62,8 +62,20 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="9.0.100" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.8" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.8" />
 		<PackageReference Include="CommunityToolkit.Maui" Version="12.2.0" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<PackageReference Include="StrawberryShake.Maui" Version="15.1.8" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<GraphQL Include="schema.graphql" />
+		<GraphQL Include="Queries\*.graphql" />
+		<GraphQL Include="Mutations\*.graphql" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="appsettings.json" />
 	</ItemGroup>
 
 </Project>
