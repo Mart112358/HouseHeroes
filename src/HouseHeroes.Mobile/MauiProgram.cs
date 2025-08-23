@@ -2,6 +2,9 @@
 using Microsoft.Extensions.Configuration;
 using CommunityToolkit.Maui;
 using HouseHeroes.Mobile.ViewModels;
+using HouseHeroes.Mobile.Services;
+using HouseHeroes.Mobile.Configuration;
+using HouseHeroes.Mobile.Views;
 using System.Reflection;
 
 namespace HouseHeroes.Mobile;
@@ -31,6 +34,11 @@ public static class MauiProgram
 			builder.Configuration.AddConfiguration(config);
 		}
 
+		// Configure authentication
+		builder.Services.Configure<AuthenticationConfig>(
+			builder.Configuration.GetSection(AuthenticationConfig.SectionName));
+		builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
+
 		// Configure GraphQL client
 		var graphqlEndpoint = builder.Configuration["ApiSettings:GraphQLEndpoint"]!;
 		builder.Services
@@ -39,7 +47,12 @@ public static class MauiProgram
 
 		builder.Services.AddSingleton<FamiliesViewModel>();
 		builder.Services.AddSingleton<TasksViewModel>();
+		builder.Services.AddTransient<LoginViewModel>();
+		builder.Services.AddTransient<WelcomeViewModel>();
 		builder.Services.AddSingleton<MainPage>();
+		builder.Services.AddTransient<LoginPage>();
+		builder.Services.AddTransient<WelcomePage>();
+		builder.Services.AddSingleton<AppShell>();
 
 #if DEBUG
 		builder.Logging.AddDebug();

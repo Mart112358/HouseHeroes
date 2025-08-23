@@ -38,13 +38,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.EntraUserId).IsRequired().HasMaxLength(256);
             entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
-            entity.Property(e => e.PasswordHash).IsRequired();
             entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Role).HasConversion<string>();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("NOW()");
             
-            // Create unique index on Email
+            // Create unique index on EntraUserId and Email
+            entity.HasIndex(e => e.EntraUserId).IsUnique();
             entity.HasIndex(e => e.Email).IsUnique();
             
             // One User creates many Tasks

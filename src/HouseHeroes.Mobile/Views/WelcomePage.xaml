@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="HouseHeroes.Mobile.Views.WelcomePage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:HouseHeroes.Mobile.ViewModels"
+             x:DataType="viewmodels:WelcomeViewModel"
+             Title="Welcome to House Heroes!"
+             Shell.NavBarIsVisible="False">
+    <ScrollView>
+        <StackLayout Padding="30" Spacing="25" VerticalOptions="Center">
+            
+            <!-- Welcome Header -->
+            <Label Text="🏠" 
+                   FontSize="80" 
+                   HorizontalOptions="Center" />
+            
+            <Label Text="Welcome to House Heroes!" 
+                   FontSize="28" 
+                   FontAttributes="Bold"
+                   HorizontalOptions="Center" 
+                   TextColor="{StaticResource Primary}" />
+            
+            <Label Text="{Binding WelcomeMessage}"
+                   FontSize="16"
+                   HorizontalOptions="Center"
+                   HorizontalTextAlignment="Center"
+                   TextColor="{StaticResource Gray900}" />
+
+            <!-- Spacing -->
+            <BoxView HeightRequest="20" Color="Transparent" />
+
+            <!-- Family Setup Options -->
+            <Frame BackgroundColor="{StaticResource Gray50}"
+                   BorderColor="{StaticResource Gray200}"
+                   CornerRadius="15"
+                   Padding="20">
+                <StackLayout Spacing="20">
+                    
+                    <Label Text="Let's set up your family!"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           TextColor="{StaticResource Gray800}" />
+                    
+                    <Label Text="Choose how you'd like to get started:"
+                           FontSize="16"
+                           HorizontalOptions="Center"
+                           HorizontalTextAlignment="Center"
+                           TextColor="{StaticResource Gray600}" />
+
+                    <!-- Create New Family Option -->
+                    <Frame BackgroundColor="White"
+                           BorderColor="{StaticResource Primary}"
+                           CornerRadius="10"
+                           Padding="15"
+                           HasShadow="True">
+                        <StackLayout>
+                            <Label Text="👨‍👩‍👧‍👦 Create a New Family"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource Primary}" />
+                            <Label Text="Start fresh with your own family group. You'll be the primary guardian."
+                                   FontSize="14"
+                                   TextColor="{StaticResource Gray600}" />
+                            
+                            <StackLayout Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
+                                <Entry Text="{Binding FamilyName}"
+                                       Placeholder="Enter your family name (e.g., The Smith Family)"
+                                       FontSize="14"
+                                       HorizontalOptions="FillAndExpand" />
+                            </StackLayout>
+                            
+                            <Button Text="Create My Family"
+                                    Command="{Binding CreateFamilyCommand}"
+                                    BackgroundColor="{StaticResource Primary}"
+                                    TextColor="White"
+                                    FontSize="16"
+                                    FontAttributes="Bold"
+                                    HeightRequest="45"
+                                    CornerRadius="22"
+                                    Margin="0,10,0,0" />
+                        </StackLayout>
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding SelectCreateFamilyCommand}" />
+                        </Frame.GestureRecognizers>
+                    </Frame>
+
+                    <Label Text="OR" 
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           TextColor="{StaticResource Gray500}" />
+
+                    <!-- Join Existing Family Option -->
+                    <Frame BackgroundColor="White"
+                           BorderColor="{StaticResource Success}"
+                           CornerRadius="10"
+                           Padding="15"
+                           HasShadow="True">
+                        <StackLayout>
+                            <Label Text="🔗 Join an Existing Family"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource Success}" />
+                            <Label Text="Join a family that's already using House Heroes. Ask your family member for the family code."
+                                   FontSize="14"
+                                   TextColor="{StaticResource Gray600}" />
+                            
+                            <StackLayout Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
+                                <Entry Text="{Binding FamilyCode}"
+                                       Placeholder="Enter family invitation code"
+                                       FontSize="14"
+                                       HorizontalOptions="FillAndExpand" />
+                            </StackLayout>
+                            
+                            <Button Text="Join Family"
+                                    Command="{Binding JoinFamilyCommand}"
+                                    BackgroundColor="{StaticResource Success}"
+                                    TextColor="White"
+                                    FontSize="16"
+                                    FontAttributes="Bold"
+                                    HeightRequest="45"
+                                    CornerRadius="22"
+                                    Margin="0,10,0,0" />
+                        </StackLayout>
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding SelectJoinFamilyCommand}" />
+                        </Frame.GestureRecognizers>
+                    </Frame>
+
+                </StackLayout>
+            </Frame>
+
+            <!-- Loading Indicator -->
+            <StackLayout IsVisible="{Binding IsProcessing}" Spacing="10">
+                <ActivityIndicator IsRunning="{Binding IsProcessing}"
+                                 Color="{StaticResource Primary}"
+                                 HeightRequest="30" />
+                <Label Text="{Binding StatusMessage}"
+                       FontSize="14"
+                       HorizontalOptions="Center"
+                       TextColor="{StaticResource Primary}" />
+            </StackLayout>
+
+            <!-- Skip for Now (Optional) -->
+            <Button Text="I'll set this up later"
+                    Command="{Binding SkipSetupCommand}"
+                    BackgroundColor="Transparent"
+                    TextColor="{StaticResource Gray600}"
+                    FontSize="14"
+                    Margin="0,20,0,0" />
+            
+        </StackLayout>
+    </ScrollView>
+</ContentPage>

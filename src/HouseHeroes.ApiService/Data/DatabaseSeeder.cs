@@ -35,112 +35,122 @@ public static class DatabaseSeeder
         var sarah = new User
         {
             Id = Guid.NewGuid(),
+            EntraUserId = "sarah-paquin-entra-id-001",
             Email = "sarah.paquin@email.com",
-            PasswordHash = "hashed_password_123", // In real app, use proper hashing
             FirstName = "Sarah",
             LastName = "Paquin",
             Role = UserRole.Guardian,
-            FamilyId = paquinFamily.Id
+            FamilyId = paquinFamily.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-30)
         };
 
         var mike = new User
         {
             Id = Guid.NewGuid(),
+            EntraUserId = "mike-paquin-entra-id-002",
             Email = "mike.paquin@email.com",
-            PasswordHash = "hashed_password_456",
             FirstName = "Mike",
             LastName = "Paquin",
             Role = UserRole.Guardian,
-            FamilyId = paquinFamily.Id
+            FamilyId = paquinFamily.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-30)
         };
 
         var emma = new User
         {
             Id = Guid.NewGuid(),
+            EntraUserId = "emma-paquin-entra-id-003",
             Email = "emma.paquin@email.com",
-            PasswordHash = "hashed_password_789",
             FirstName = "Emma",
             LastName = "Paquin",
             Role = UserRole.Child,
-            FamilyId = paquinFamily.Id
+            FamilyId = paquinFamily.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-25)
         };
 
         var lucas = new User
         {
             Id = Guid.NewGuid(),
+            EntraUserId = "lucas-paquin-entra-id-004",
             Email = "lucas.paquin@email.com",
-            PasswordHash = "hashed_password_101",
             FirstName = "Lucas",
             LastName = "Paquin",
             Role = UserRole.Child,
-            FamilyId = paquinFamily.Id
+            FamilyId = paquinFamily.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-25)
         };
 
         // Create users for Johnson family (blended family)
         var marc = new User
         {
             Id = Guid.NewGuid(),
+            EntraUserId = "marc-johnson-entra-id-005",
             Email = "marc.johnson@email.com",
-            PasswordHash = "hashed_password_202",
             FirstName = "Marc",
             LastName = "Johnson",
             Role = UserRole.Guardian,
-            FamilyId = johnsonFamily.Id
+            FamilyId = johnsonFamily.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-45)
         };
 
         var jessica = new User
         {
             Id = Guid.NewGuid(),
+            EntraUserId = "jessica-johnson-entra-id-006",
             Email = "jessica.johnson@email.com",
-            PasswordHash = "hashed_password_303",
             FirstName = "Jessica",
             LastName = "Johnson",
             Role = UserRole.Guardian,
-            FamilyId = johnsonFamily.Id
+            FamilyId = johnsonFamily.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-45)
         };
 
         var alex = new User
         {
             Id = Guid.NewGuid(),
+            EntraUserId = "alex-johnson-entra-id-007",
             Email = "alex.johnson@email.com",
-            PasswordHash = "hashed_password_404",
             FirstName = "Alex",
             LastName = "Johnson",
             Role = UserRole.Child,
-            FamilyId = johnsonFamily.Id
+            FamilyId = johnsonFamily.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-40)
         };
 
         var sophia = new User
         {
             Id = Guid.NewGuid(),
+            EntraUserId = "sophia-johnson-entra-id-008",
             Email = "sophia.johnson@email.com",
-            PasswordHash = "hashed_password_505",
             FirstName = "Sophia",
             LastName = "Johnson",
             Role = UserRole.Child,
-            FamilyId = johnsonFamily.Id
+            FamilyId = johnsonFamily.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-40)
         };
 
         var ethan = new User
         {
             Id = Guid.NewGuid(),
+            EntraUserId = "ethan-johnson-entra-id-009",
             Email = "ethan.johnson@email.com",
-            PasswordHash = "hashed_password_606",
             FirstName = "Ethan",
             LastName = "Johnson",
             Role = UserRole.Child,
-            FamilyId = johnsonFamily.Id
+            FamilyId = johnsonFamily.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-35)
         };
 
         var mia = new User
         {
             Id = Guid.NewGuid(),
+            EntraUserId = "mia-johnson-entra-id-010",
             Email = "mia.johnson@email.com",
-            PasswordHash = "hashed_password_707",
             FirstName = "Mia",
             LastName = "Johnson",
             Role = UserRole.Child,
-            FamilyId = johnsonFamily.Id
+            FamilyId = johnsonFamily.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-35)
         };
 
         context.Users.AddRange(sarah, mike, emma, lucas, marc, jessica, alex, sophia, ethan, mia);

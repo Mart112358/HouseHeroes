@@ -1,4 +1,6 @@
-﻿namespace HouseHeroes.Mobile;
+﻿using Microsoft.Extensions.DependencyInjection;
+
+namespace HouseHeroes.Mobile;
 
 public partial class App : Application
 {
@@ -9,6 +11,7 @@ public partial class App : Application
 
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
-		return new Window(new AppShell());
+		var appShell = Handler?.MauiContext?.Services.GetRequiredService<AppShell>();
+		return new Window(appShell ?? throw new InvalidOperationException("AppShell not registered"));
 	}
 }

@@ -32,5 +32,16 @@
 	<array>
 		<string>fetch</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.companyname.househeroes.mobile</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>msal7cd7528e-e23c-4f29-9267-0e4f2af1ac9d</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

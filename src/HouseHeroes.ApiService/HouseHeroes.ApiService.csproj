@@ -12,11 +12,14 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Npgsql" Version="9.4.1" />
+    <PackageReference Include="HotChocolate.AspNetCore.Authorization" Version="15.1.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.8" />
     <PackageReference Include="HotChocolate.AspNetCore" Version="15.1.8" />
     <PackageReference Include="HotChocolate.Data.EntityFramework" Version="15.1.8" />
     <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.4.1" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
   </ItemGroup>
 
 </Project>

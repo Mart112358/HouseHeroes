@@ -4,11 +4,42 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:HouseHeroes.Mobile"
-    Title="HouseHeroes.Mobile">
+    xmlns:views="clr-namespace:HouseHeroes.Mobile.Views"
+    Title="House Heroes">
 
+    <!-- Login Page - shown when not authenticated -->
     <ShellContent
-        Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+        Title="Login"
+        ContentTemplate="{DataTemplate views:LoginPage}"
+        Route="login"
+        IsVisible="True" />
+
+    <!-- Welcome/Onboarding Page - shown for new users -->
+    <ShellContent
+        Title="Welcome"
+        ContentTemplate="{DataTemplate views:WelcomePage}"
+        Route="welcome"
+        IsVisible="False" />
+
+    <!-- Main App Content - shown when authenticated -->
+    <TabBar Route="main" IsVisible="False">
+        <ShellContent
+            Title="Tasks"
+            Icon="checklist.png"
+            ContentTemplate="{DataTemplate local:MainPage}"
+            Route="tasks" />
+            
+        <ShellContent
+            Title="Family"
+            Icon="people.png"
+            ContentTemplate="{DataTemplate local:MainPage}"
+            Route="family" />
+            
+        <ShellContent
+            Title="Settings"
+            Icon="settings.png"
+            ContentTemplate="{DataTemplate local:MainPage}"
+            Route="settings" />
+    </TabBar>
 
 </Shell>

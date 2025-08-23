@@ -1,7 +1,10 @@
 using HouseHeroes.ApiService.Data;
 using HouseHeroes.ApiService.GraphQL.Queries;
 using HouseHeroes.ApiService.GraphQL.Mutations;
+using HouseHeroes.ApiService.Authentication;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +13,27 @@ builder.AddServiceDefaults();
 
 builder.AddNpgsqlDbContext<AppDbContext>("househeroes");
 
+// Configure JWT Authentication
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = builder.Configuration["EntraId:Authority"];
+        options.Audience = builder.Configuration["EntraId:ClientId"];
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ClockSkew = TimeSpan.FromMinutes(5)
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// Add authentication services
+builder.Services.AddScoped<IUserService, UserService>();
+
 // Add GraphQL
 builder.Services
     .AddGraphQLServer()
@@ -17,7 +41,8 @@ builder.Services
     .AddMutationType<Mutation>()
     .AddProjections()
     .AddFiltering()
-    .AddSorting();
+    .AddSorting()
+    .AddAuthorization();
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
@@ -34,6 +59,9 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Map GraphQL endpoint
 app.MapGraphQL();

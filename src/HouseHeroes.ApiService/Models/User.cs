@@ -7,11 +7,11 @@ public class User
     public Guid Id { get; set; }
     
     [Required]
-    [EmailAddress]
-    public string Email { get; set; } = string.Empty;
+    public string EntraUserId { get; set; } = string.Empty;
     
     [Required]
-    public string PasswordHash { get; set; } = string.Empty;
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
     
     [Required]
     public string FirstName { get; set; } = string.Empty;
@@ -22,6 +22,9 @@ public class User
     public UserRole Role { get; set; }
     
     public Guid FamilyId { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastLoginAt { get; set; }
     
     // Navigation properties
     public Family Family { get; set; } = null!;
