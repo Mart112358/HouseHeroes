@@ -1,0 +1,307 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  AZURE_WEBAPP_NAME: 'househeroes-api'
+  AZURE_WEBAPP_PACKAGE_PATH: './publish'
+  AZURE_CONTAINER_REGISTRY: 'househeroesacr.azurecr.io'
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build solution
+      run: dotnet build --no-restore --configuration Release
+      
+    - name: Run tests
+      run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
+      
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      if: success()
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: false
+
+  build-mobile-android:
+    name: Build Android App
+    runs-on: windows-latest
+    needs: build-and-test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Install MAUI workload
+      run: dotnet workload install maui
+      
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build Android App
+      run: dotnet build src/HouseHeroes.Mobile -f net9.0-android -c Release
+      
+    - name: Upload Android artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-app
+        path: src/HouseHeroes.Mobile/bin/Release/net9.0-android/
+
+  build-mobile-ios:
+    name: Build iOS App
+    runs-on: macos-latest
+    needs: build-and-test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Install MAUI workload
+      run: dotnet workload install maui
+      
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build iOS App
+      run: dotnet build src/HouseHeroes.Mobile -f net9.0-ios -c Release
+      
+    - name: Upload iOS artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-app
+        path: src/HouseHeroes.Mobile/bin/Release/net9.0-ios/
+
+  build-mobile-maccatalyst:
+    name: Build macOS App
+    runs-on: macos-latest
+    needs: build-and-test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Install MAUI workload
+      run: dotnet workload install maui
+      
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build macOS App
+      run: dotnet build src/HouseHeroes.Mobile -f net9.0-maccatalyst -c Release
+      
+    - name: Upload macOS artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-app
+        path: src/HouseHeroes.Mobile/bin/Release/net9.0-maccatalyst/
+
+  build-mobile-windows:
+    name: Build Windows App
+    runs-on: windows-latest
+    needs: build-and-test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Install MAUI workload
+      run: dotnet workload install maui
+      
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build Windows App
+      run: dotnet build src/HouseHeroes.Mobile -f net9.0-windows10.0.19041.0 -c Release
+      
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-app
+        path: src/HouseHeroes.Mobile/bin/Release/net9.0-windows10.0.19041.0/
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Run security audit
+      run: dotnet list package --vulnerable --include-transitive
+      
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/init@v3
+      with:
+        languages: csharp
+        
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+      
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+  deploy-staging:
+    name: Deploy to Azure Staging
+    runs-on: ubuntu-latest
+    needs: [build-and-test, security-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Azure CLI Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS_STAGING }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build for staging
+      run: dotnet build --configuration Release
+      
+    - name: Publish API
+      run: dotnet publish src/HouseHeroes.ApiService -c Release -o ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+      
+    - name: Create Dockerfile for API
+      run: |
+        cat > Dockerfile << EOF
+        FROM mcr.microsoft.com/dotnet/aspnet:9.0
+        WORKDIR /app
+        COPY ${{ env.AZURE_WEBAPP_PACKAGE_PATH }} .
+        EXPOSE 8080
+        ENTRYPOINT ["dotnet", "HouseHeroes.ApiService.dll"]
+        EOF
+      
+    - name: Build and push Docker image to ACR
+      run: |
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/househeroes-api:staging-${{ github.sha }} .
+        docker login ${{ env.AZURE_CONTAINER_REGISTRY }} -u ${{ secrets.ACR_USERNAME }} -p ${{ secrets.ACR_PASSWORD }}
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/househeroes-api:staging-${{ github.sha }}
+        
+    - name: Deploy to Azure Container Apps (Staging)
+      run: |
+        az containerapp update \
+          --name househeroes-api-staging \
+          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_STAGING }} \
+          --image ${{ env.AZURE_CONTAINER_REGISTRY }}/househeroes-api:staging-${{ github.sha }} \
+          --environment-variables \
+            ASPNETCORE_ENVIRONMENT=Staging \
+            ConnectionStrings__DefaultConnection="${{ secrets.DATABASE_CONNECTION_STRING_STAGING }}"
+
+  deploy-production:
+    name: Deploy to Azure Production
+    runs-on: ubuntu-latest
+    needs: [build-and-test, build-mobile-android, security-scan]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Azure CLI Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS_PRODUCTION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build for production
+      run: dotnet build --configuration Release
+      
+    - name: Publish API
+      run: dotnet publish src/HouseHeroes.ApiService -c Release -o ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+      
+    - name: Create Dockerfile for API
+      run: |
+        cat > Dockerfile << EOF
+        FROM mcr.microsoft.com/dotnet/aspnet:9.0
+        WORKDIR /app
+        COPY ${{ env.AZURE_WEBAPP_PACKAGE_PATH }} .
+        EXPOSE 8080
+        ENTRYPOINT ["dotnet", "HouseHeroes.ApiService.dll"]
+        EOF
+      
+    - name: Build and push Docker image to ACR
+      run: |
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/househeroes-api:prod-${{ github.sha }} .
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/househeroes-api:latest .
+        docker login ${{ env.AZURE_CONTAINER_REGISTRY }} -u ${{ secrets.ACR_USERNAME }} -p ${{ secrets.ACR_PASSWORD }}
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/househeroes-api:prod-${{ github.sha }}
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/househeroes-api:latest
+        
+    - name: Deploy to Azure Container Apps (Production)
+      run: |
+        az containerapp update \
+          --name househeroes-api-production \
+          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_PRODUCTION }} \
+          --image ${{ env.AZURE_CONTAINER_REGISTRY }}/househeroes-api:prod-${{ github.sha }} \
+          --environment-variables \
+            ASPNETCORE_ENVIRONMENT=Production \
+            ConnectionStrings__DefaultConnection="${{ secrets.DATABASE_CONNECTION_STRING_PRODUCTION }}"
+            
+    - name: Run Database Migrations (Production)
+      run: |
+        az containerapp job start \
+          --name househeroes-migration-job \
+          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_PRODUCTION }}
