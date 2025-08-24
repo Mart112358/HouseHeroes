@@ -84,4 +84,17 @@ public class Query
             .ThenInclude(ta => ta.User)
             .FirstOrDefaultAsync(t => t.Id == id && t.FamilyId == user.FamilyId);
     }
+
+    // Anonymous query for testing purposes - fetch all tasks
+    [UseProjection]
+    [UseFiltering]
+    [UseSorting]
+    public IQueryable<Models.Task> GetAllTasks(AppDbContext context)
+    {
+        return context.Tasks
+            .Include(t => t.Family)
+            .Include(t => t.CreatedBy)
+            .Include(t => t.TaskAssignments)
+            .ThenInclude(ta => ta.User);
+    }
 }

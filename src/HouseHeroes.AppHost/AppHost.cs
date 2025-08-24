@@ -1,14 +1,13 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-var postgres = builder.AddPostgres("postgres")
-    // .WithLifetime(ContainerLifetime.Persistent)
-    .WithPgWeb();
+var password = builder.AddParameter("sql-password", secret: true);
+var sqlServer = builder.AddSqlServer("sqlserver", password);
 
-var houseHeroesDb = postgres.AddDatabase("househeroes");
+var houseHeroesDb = sqlServer.AddDatabase("househeroes");
 
 builder.AddProject<Projects.HouseHeroes_ApiService>("apiservice")
     .WithReference(houseHeroesDb)
-    .WaitFor(postgres)
+    .WaitFor(sqlServer)
     .WithHttpHealthCheck("/health");
 
 builder.Build().Run();

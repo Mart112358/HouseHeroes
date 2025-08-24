@@ -86,12 +86,12 @@ dotnet test
 - Uses .NET Aspire for local development experience with built-in service discovery
 - .NET MAUI for cross-platform mobile development targeting the PRD's mobile-first approach
 - ASP.NET Core Identity planned for authentication
-- Entity Framework Core 9 + PostgreSQL with Aspire hosting for data persistence
+- Entity Framework Core 9 + SQL Server with Aspire hosting for data persistence
 - HotChocolate v15 GraphQL API for data access
 - OpenTelemetry configured for observability
 
 ### Database Infrastructure
-- **PostgreSQL 16 Alpine**: Containerized via Aspire hosting
+- **SQL Server**: Containerized via Aspire hosting
 - **Connection Management**: Automatic via Aspire service discovery
 - **Migrations**: EF Core migrations applied automatically on startup
 - **Seed Data**: Realistic family scenarios with two families (Paquin divorced/shared custody, Johnson blended family) loaded in development

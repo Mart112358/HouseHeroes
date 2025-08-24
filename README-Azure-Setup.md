@@ -2,6 +2,18 @@
 
 This guide walks through setting up Azure infrastructure and CI/CD for the HouseHeroes application.
 
+## Infrastructure-as-Code Options
+
+Choose between two infrastructure deployment methods:
+
+- **🔥 Terraform** (Recommended): Modern, multi-cloud IaC tool with better state management
+  - See [Terraform Setup Guide](README-Terraform-Setup.md) for detailed instructions
+  - Better for teams, version control, and complex deployments
+  
+- **🔧 Bicep** (Legacy): Azure-native ARM template language
+  - Instructions below for existing Bicep setup
+  - Simpler for Azure-only deployments
+
 ## Prerequisites
 
 - Azure CLI installed and authenticated
@@ -23,7 +35,7 @@ cd infra
 
 The script will create:
 - Azure Container Registry (ACR)
-- PostgreSQL Flexible Server
+- SQL Server
 - Container App Environment
 - Container App for the API
 - Log Analytics Workspace
@@ -39,12 +51,12 @@ After running the deployment script, configure these secrets in your GitHub repo
 - `AZURE_RESOURCE_GROUP_STAGING`: Resource group name (e.g., `rg-househeroes-staging`)
 - `ACR_USERNAME`: Container registry username
 - `ACR_PASSWORD`: Container registry password
-- `DATABASE_CONNECTION_STRING_STAGING`: PostgreSQL connection string
+- `DATABASE_CONNECTION_STRING_STAGING`: SQL Server connection string
 
 #### Production Environment
 - `AZURE_CREDENTIALS_PRODUCTION`: Service principal JSON from deployment output
 - `AZURE_RESOURCE_GROUP_PRODUCTION`: Resource group name (e.g., `rg-househeroes-production`)
-- `DATABASE_CONNECTION_STRING_PRODUCTION`: PostgreSQL connection string
+- `DATABASE_CONNECTION_STRING_PRODUCTION`: SQL Server connection string
 
 #### Optional Secrets
 - `CODECOV_TOKEN`: For code coverage reporting
@@ -74,8 +86,8 @@ After running the deployment script, configure these secrets in your GitHub repo
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   MAUI Mobile   │────│   Container App  │────│   PostgreSQL    │
-│      Apps       │    │   (API Service)  │    │  Flexible Server│
+│   MAUI Mobile   │────│   Container App  │────│   SQL Server    │
+│      Apps       │    │   (API Service)  │    │                 │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
                               │
                               ▼
@@ -130,7 +142,7 @@ az containerapp job logs show --name househeroes-migration-job --resource-group 
 ## Cost Optimization
 
 The infrastructure is configured for cost efficiency:
-- **Staging**: Single replica, burstable PostgreSQL tier
+- **Staging**: Single replica, basic SQL Server tier
 - **Production**: Auto-scaling 2-10 replicas, higher performance tiers
 - Container Apps scale to zero when not in use
 - Basic tier Container Registry for development
@@ -138,7 +150,7 @@ The infrastructure is configured for cost efficiency:
 ## Security Features
 
 - Container Registry with admin user enabled for CI/CD
-- PostgreSQL with SSL/TLS required
+- SQL Server with encryption required
 - Firewall rules restricting database access
 - Service principal with least privilege access
 - Secrets stored in Azure Key Vault integration (Container Apps)

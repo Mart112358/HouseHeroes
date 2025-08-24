@@ -1,0 +1,19 @@
+# Example terraform.tfvars file
+# Copy this file to terraform.tfvars and fill in your values
+
+environment             = "staging"
+location               = "Canada Central"
+app_name              = "househeroes"
+resource_group_name   = "rg-househeroes-staging"
+sql_server_admin_login = "hhadmin"
+
+# Optional: Provide a password, or leave commented to auto-generate
+# sql_server_admin_password = "YourStrong!Password123"
+
+# Optional: Add custom tags
+tags = {
+  Project     = "HouseHeroes"
+  Environment = "staging"
+  ManagedBy   = "Terraform"
+  Owner       = "DevTeam"
+}
