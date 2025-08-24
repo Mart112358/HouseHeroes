@@ -61,6 +61,22 @@ dotnet build src/HouseHeroes.Mobile -f net9.0-maccatalyst
 dotnet test
 ```
 
+### Infrastructure Deployment
+```bash
+# Deploy to Azure using Terraform (recommended)
+cd infra
+./deploy-terraform.sh staging
+./deploy-terraform.sh production
+
+# Destroy Azure infrastructure
+./destroy-terraform.sh staging
+
+# Manual Terraform commands
+terraform init
+terraform plan -var-file="staging.tfvars"
+terraform apply -var-file="staging.tfvars"
+```
+
 ## Architecture
 
 ### Service Architecture
@@ -98,7 +114,9 @@ dotnet test
 - **Health Checks**: Database connectivity monitoring at `/health/database`
 
 ### API Endpoints
-- **GraphQL**: `/graphql` - Full CRUD operations for all entities
+- **GraphQL**: `/graphql` - Full CRUD operations for all entities (authenticated)
+- **GraphQL Anonymous**: `/graphql` - Anonymous query `getAllTasks` for testing/development
+- **REST Anonymous**: `/api/tasks` - Anonymous endpoint returning all tasks with related data
 - **Health Check**: `/health/database` - Database connection status
 - **OpenAPI**: `/openapi` - REST API documentation (development)
 
@@ -112,9 +130,10 @@ dotnet test
 
 The project has a working foundation with:
 - Complete data model implementation (User, Family, Task, TaskAssignment)
-- GraphQL API with full CRUD operations
+- GraphQL API with full CRUD operations and anonymous testing endpoints
 - Database seeding with realistic family scenarios
 - .NET Aspire orchestration for development
-- Entity Framework migrations and PostgreSQL integration
+- Entity Framework migrations and SQL Server integration
+- Terraform infrastructure as code for Azure deployment
 
-The mobile app currently uses a basic MAUI template and needs to be connected to the GraphQL API. Authentication and authorization are not yet implemented.
+The mobile app currently uses a basic MAUI template and needs to be connected to the GraphQL API. Authentication and authorization scaffolding is in place with EntraID/JWT configuration but not fully implemented.
