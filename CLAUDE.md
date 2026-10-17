@@ -33,12 +33,13 @@ cd src/HouseHeroes.Mobile && dotnet tool restore && dotnet graphql update
 ### Deployment (run from `infra/`)
 
 ```bash
+./bootstrap-state.sh                 # once per subscription: create the Terraform remote state storage account
 ./deploy-terraform.sh staging        # provision infra incl. resource group (uses staging.tfvars / production.tfvars)
 ./deploy-app.sh staging [image-tag]  # build `final` + `migration` Dockerfile targets (linux/amd64), push to ACR, run migration job and wait, then update Container App
 ./destroy-terraform.sh staging
 ```
 
-Terraform owns the resource group but ignores image changes on the Container App and migration job; `deploy-app.sh` owns the images. Terraform state is local and shared between environments, so `deploy-app.sh` checks that the state's `environment` output matches its argument.
+Terraform owns the resource group but ignores image changes on the Container App and migration job; `deploy-app.sh` owns the images. Terraform state is remote (Azure Storage), one file per environment selected via `<environment>.tfbackend`; always `terraform init -reconfigure -backend-config=<environment>.tfbackend` before running Terraform by hand.
 
 Detailed Azure/Terraform setup docs are in `docs/README-Azure-Setup.md` and `docs/README-Terraform-Setup.md`. CI (`.github/workflows/ci-cd.yml`) builds/tests, builds the mobile targets, and runs a vulnerable-package scan.
 

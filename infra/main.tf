@@ -1,5 +1,9 @@
 terraform {
   required_version = ">= 1.0"
+
+  # Partial config; pass <environment>.tfbackend to terraform init
+  backend "azurerm" {}
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"

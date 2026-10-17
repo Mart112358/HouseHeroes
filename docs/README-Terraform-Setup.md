@@ -18,15 +18,8 @@ This guide walks through setting up Azure infrastructure and CI/CD for the House
 ```bash
 cd infra
 
-# Copy example variables file and configure
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your values
-
-# Initialize Terraform
-terraform init
-
-# Plan the deployment
-terraform plan
+# Create the remote state storage account (once per subscription)
+./bootstrap-state.sh
 
 # Deploy staging environment
 ./deploy-terraform.sh staging
@@ -43,13 +36,14 @@ terraform plan
 ```bash
 cd infra
 
-# Initialize Terraform
-terraform init
+# Initialize Terraform against the staging state
+terraform init -reconfigure -backend-config="staging.tfbackend"
 
 # Deploy staging
 terraform apply -var-file="staging.tfvars" -var="resource_group_name=rg-househeroes-staging"
 
-# Deploy production
+# Deploy production (switch state first)
+terraform init -reconfigure -backend-config="production.tfbackend"
 terraform apply -var-file="production.tfvars" -var="resource_group_name=rg-househeroes-production"
 ```
 
@@ -97,7 +91,10 @@ infra/
 ├── outputs.tf                # Output values
 ├── staging.tfvars           # Staging environment variables
 ├── production.tfvars        # Production environment variables
+├── staging.tfbackend         # Staging remote state settings
+├── production.tfbackend      # Production remote state settings
 ├── terraform.tfvars.example # Example variables file
+├── bootstrap-state.sh       # Creates the remote state storage account
 ├── deploy-terraform.sh      # Infrastructure deployment script
 ├── deploy-app.sh            # Image build, migration and app deployment script
 └── destroy-terraform.sh     # Destruction script
@@ -108,7 +105,7 @@ infra/
 - **Secure Secrets**: SQL Server passwords can be provided or auto-generated
 - **Environment-specific**: Separate .tfvars files for staging/production
 - **Resource Tagging**: Consistent tagging across all resources
-- **State Management**: Local state (consider remote state for production)
+- **State Management**: Remote state in Azure Storage, one state file per environment
 
 ### Variables
 
@@ -169,8 +166,8 @@ infra/
 ### Terraform Commands
 
 ```bash
-# Initialize Terraform
-terraform init
+# Initialize Terraform against an environment's state
+terraform init -reconfigure -backend-config="staging.tfbackend"
 
 # Validate configuration
 terraform validate
@@ -199,25 +196,15 @@ Terraform only sets placeholder images on the container app and migration job an
 
 ## State Management
 
-### Local State (Current)
-- Terraform state is stored locally in `terraform.tfstate`, shared by staging and production
-- Suitable for development and small teams
-- CI starts from empty state on every run
-- **Risk**: State file loss means losing track of infrastructure
+State is stored in Azure Storage, outside the environments it describes, so destroying an environment doesn't delete its state:
 
-### Remote State (Recommended for Production)
-Consider using Azure Storage for remote state:
+- **Storage**: `househeroestfstate` storage account in `rg-househeroes-tfstate`, container `tfstate`
+- **One state file per environment**: `staging.terraform.tfstate` and `production.terraform.tfstate`, selected by passing `<environment>.tfbackend` to `terraform init`
+- **Locking**: Blob leases prevent concurrent applies (for example CI and a local run)
+- **Recovery**: Blob versioning keeps previous state versions
+- **Setup**: Run `./bootstrap-state.sh` once per subscription. It reads the names from `staging.tfbackend`. If the storage account name is taken, change `storage_account_name` in both `.tfbackend` files.
 
-```hcl
-terraform {
-  backend "azurerm" {
-    resource_group_name  = "rg-terraform-state"
-    storage_account_name = "tfstatexxxxx"
-    container_name       = "tfstate"
-    key                  = "househeroes.terraform.tfstate"
-  }
-}
-```
+The scripts and CI run `terraform init -reconfigure -backend-config="<environment>.tfbackend"` before every operation. When running Terraform by hand, do the same before switching environments.
 
 ## Monitoring and Logs
 
@@ -257,7 +244,7 @@ The infrastructure is configured for cost efficiency:
 ### Backup Strategy
 - **Database**: Automatic SQL Server backups (7-day retention)
 - **Container Images**: Stored in ACR with geo-replication available
-- **Terraform State**: Should be backed up regularly
+- **Terraform State**: Stored in Azure Storage with blob versioning
 
 ### Recovery Process
 ```bash

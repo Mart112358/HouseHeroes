@@ -18,6 +18,9 @@ Infrastructure is defined with Terraform. See the [Terraform Setup Guide](README
 ```bash
 cd infra
 
+# Create the Terraform remote state storage account (once per subscription)
+./bootstrap-state.sh
+
 # Provision staging infrastructure (creates the resource group too)
 ./deploy-terraform.sh staging
 
@@ -29,7 +32,7 @@ cd infra
 ./deploy-app.sh production [image-tag]
 ```
 
-Terraform state is local and shared between environments, so run `deploy-app.sh` for the environment you last applied with `deploy-terraform.sh`. The script refuses to run otherwise.
+Each environment has its own remote state file in Azure Storage, so the scripts can run in any order.
 
 `deploy-terraform.sh` creates:
 - Azure Container Registry (ACR)

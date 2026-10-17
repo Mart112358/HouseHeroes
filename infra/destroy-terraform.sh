@@ -8,6 +8,7 @@ set -e
 ENVIRONMENT=${1:-staging}
 RESOURCE_GROUP="rg-househeroes-$ENVIRONMENT"
 TF_VAR_FILE="${ENVIRONMENT}.tfvars"
+TF_BACKEND_FILE="${ENVIRONMENT}.tfbackend"
 
 echo "Destroying HouseHeroes infrastructure with Terraform for environment: $ENVIRONMENT"
 echo "Resource Group: $RESOURCE_GROUP"
@@ -26,9 +27,19 @@ if [ ! -f "$TF_VAR_FILE" ]; then
     exit 1
 fi
 
-# Check if Terraform state exists
-if [ ! -f "terraform.tfstate" ]; then
-    echo "Warning: No Terraform state file found."
+# Check if backend config exists
+if [ ! -f "$TF_BACKEND_FILE" ]; then
+    echo "Error: Terraform backend config '$TF_BACKEND_FILE' not found."
+    exit 1
+fi
+
+# Initialize Terraform with this environment's remote state
+echo "Initializing Terraform..."
+terraform init -reconfigure -backend-config="$TF_BACKEND_FILE"
+
+# Check if Terraform state has anything to destroy
+if [ -z "$(terraform state list)" ]; then
+    echo "Warning: Terraform state for '$ENVIRONMENT' is empty."
     echo "If you want to delete the resource group directly, run:"
     echo "az group delete --name '$RESOURCE_GROUP' --yes"
     exit 1

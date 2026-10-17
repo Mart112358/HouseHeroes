@@ -1,0 +1,5 @@
+# Remote state for the production environment (created by ./bootstrap-state.sh)
+resource_group_name  = "rg-househeroes-tfstate"
+storage_account_name = "househeroestfstate"
+container_name       = "tfstate"
+key                  = "production.terraform.tfstate"

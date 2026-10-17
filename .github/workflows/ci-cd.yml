@@ -208,7 +208,7 @@ jobs:
         
     - name: Terraform Init
       working-directory: ./infra
-      run: terraform init
+      run: terraform init -backend-config="staging.tfbackend"
       
     - name: Terraform Validate
       working-directory: ./infra
@@ -249,15 +249,9 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS_STAGING }}
         
-    - name: Create Resource Group
-      run: |
-        az group create \
-          --name "rg-househeroes-staging" \
-          --location "Canada Central" || true
-        
     - name: Terraform Init
       working-directory: ./infra
-      run: terraform init
+      run: terraform init -backend-config="staging.tfbackend"
       
     - name: Terraform Apply
       working-directory: ./infra
@@ -298,15 +292,9 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS_PRODUCTION }}
         
-    - name: Create Resource Group
-      run: |
-        az group create \
-          --name "rg-househeroes-production" \
-          --location "Canada Central" || true
-        
     - name: Terraform Init
       working-directory: ./infra
-      run: terraform init
+      run: terraform init -backend-config="production.tfbackend"
       
     - name: Terraform Apply
       working-directory: ./infra

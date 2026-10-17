@@ -7,28 +7,25 @@ set -e
 
 ENVIRONMENT=${1:-staging}
 IMAGE_TAG=${2:-latest}
+TF_BACKEND_FILE="${ENVIRONMENT}.tfbackend"
 
 echo "Deploying HouseHeroes application for environment: $ENVIRONMENT"
 echo "Image Tag: $IMAGE_TAG"
 
+# Point Terraform at this environment's remote state
+echo "Initializing Terraform..."
+terraform init -reconfigure -backend-config="$TF_BACKEND_FILE" > /dev/null
+
 # Get infrastructure details from Terraform outputs
 echo "Getting infrastructure details from Terraform..."
-STATE_ENVIRONMENT=$(terraform output -raw environment 2>/dev/null || echo "")
+RESOURCE_GROUP=$(terraform output -raw resource_group_name 2>/dev/null || echo "")
 
-if [ -z "$STATE_ENVIRONMENT" ]; then
+if [ -z "$RESOURCE_GROUP" ]; then
     echo "Error: Could not get infrastructure details from Terraform outputs."
     echo "Make sure you have deployed infrastructure first with ./deploy-terraform.sh $ENVIRONMENT"
     exit 1
 fi
 
-# Terraform state is local and shared between environments, so make sure it matches
-if [ "$STATE_ENVIRONMENT" != "$ENVIRONMENT" ]; then
-    echo "Error: Terraform state is for '$STATE_ENVIRONMENT', not '$ENVIRONMENT'."
-    echo "Run ./deploy-terraform.sh $ENVIRONMENT first."
-    exit 1
-fi
-
-RESOURCE_GROUP=$(terraform output -raw resource_group_name)
 CONTAINER_APP=$(terraform output -raw container_app_name)
 MIGRATION_JOB=$(terraform output -raw migration_job_name)
 ACR_NAME=$(terraform output -raw container_registry_name)

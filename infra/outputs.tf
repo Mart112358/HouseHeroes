@@ -1,8 +1,3 @@
-output "environment" {
-  description = "The environment these outputs belong to"
-  value       = var.environment
-}
-
 output "container_app_name" {
   description = "The name of the container app"
   value       = azurerm_container_app.main.name

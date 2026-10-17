@@ -8,6 +8,7 @@ set -e
 ENVIRONMENT=${1:-staging}
 RESOURCE_GROUP="rg-househeroes-$ENVIRONMENT"
 TF_VAR_FILE="${ENVIRONMENT}.tfvars"
+TF_BACKEND_FILE="${ENVIRONMENT}.tfbackend"
 
 echo "Deploying HouseHeroes infrastructure with Terraform for environment: $ENVIRONMENT"
 echo "Resource Group: $RESOURCE_GROUP"
@@ -27,9 +28,15 @@ if [ ! -f "$TF_VAR_FILE" ]; then
     exit 1
 fi
 
-# Initialize Terraform
+# Check if backend config exists
+if [ ! -f "$TF_BACKEND_FILE" ]; then
+    echo "Error: Terraform backend config '$TF_BACKEND_FILE' not found."
+    exit 1
+fi
+
+# Initialize Terraform with this environment's remote state
 echo "Initializing Terraform..."
-terraform init
+terraform init -reconfigure -backend-config="$TF_BACKEND_FILE"
 
 # Validate Terraform configuration
 echo "Validating Terraform configuration..."
@@ -67,4 +74,4 @@ echo "To build, migrate and deploy the application, run:"
 echo "./deploy-app.sh $ENVIRONMENT [image-tag]"
 echo ""
 echo "=== Terraform State ==="
-echo "Terraform state is stored locally. Consider using remote state for production."
+echo "Terraform state is stored remotely (see $TF_BACKEND_FILE)."
