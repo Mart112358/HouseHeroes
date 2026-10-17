@@ -50,7 +50,7 @@ PRD flow 1: create an account, create a family, add members.
 
 PRD flows 2, 3 and 5.
 
-- [ ] API: `updateTask`, unassign, and reopening a completed task
+- [x] API: `updateTask`, `unassignTask`, `reopenTask`, and `createTask` with `assigneeIds`; `myTasks` filtering and sorting (by member, status, due date) tested to stay within the family
 - [ ] Task list filtered by member, date and status (today, this week, overdue, completed)
 - [ ] Create and edit task screen: title, description, due date, assign one or more members
 - [ ] Children's view: "My tasks", mark complete

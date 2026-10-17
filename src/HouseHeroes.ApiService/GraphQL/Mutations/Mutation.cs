@@ -20,6 +20,11 @@ public class Mutation
         var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
         user.EnsureGuardian();
 
+        var assigneeIds = input.AssigneeIds?.Distinct().ToList() ?? [];
+        var familyAssigneeCount = await context.Users.CountAsync(u => assigneeIds.Contains(u.Id) && u.FamilyId == user.FamilyId);
+        if (familyAssigneeCount != assigneeIds.Count)
+            throw GraphQLErrors.NotFound("Family member not found.");
+
         var task = new Models.Task
         {
             Id = Guid.NewGuid(),
@@ -29,10 +34,34 @@ public class Mutation
             CreatedById = user.Id,
             DueDate = input.DueDate,
             CreatedAt = DateTime.UtcNow,
-            IsCompleted = false
+            IsCompleted = false,
+            TaskAssignments = assigneeIds.Select(id => new TaskAssignment { UserId = id }).ToList()
         };
 
         context.Tasks.Add(task);
+        await context.SaveChangesAsync();
+
+        return task;
+    }
+
+    [Authorize]
+    public async System.Threading.Tasks.Task<Models.Task> UpdateTask(
+        AppDbContext context,
+        [Service] IUserService userService,
+        ClaimsPrincipal claimsPrincipal,
+        UpdateTaskInput input)
+    {
+        var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
+        user.EnsureGuardian();
+
+        var task = await context.Tasks.FirstOrDefaultAsync(t => t.Id == input.TaskId && t.FamilyId == user.FamilyId);
+        if (task == null)
+            throw GraphQLErrors.NotFound("Task not found.");
+
+        task.Title = input.Title;
+        task.Description = input.Description;
+        task.DueDate = input.DueDate;
+
         await context.SaveChangesAsync();
 
         return task;
@@ -71,9 +100,66 @@ public class Mutation
     }
 
     [Authorize]
+    public async System.Threading.Tasks.Task<bool> UnassignTask(
+        AppDbContext context,
+        [Service] IUserService userService,
+        ClaimsPrincipal claimsPrincipal,
+        AssignTaskInput input)
+    {
+        var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
+        user.EnsureGuardian();
+
+        if (!await context.Tasks.AnyAsync(t => t.Id == input.TaskId && t.FamilyId == user.FamilyId))
+            throw GraphQLErrors.NotFound("Task not found.");
+
+        var assignment = await context.TaskAssignments.FindAsync(input.TaskId, input.UserId);
+        if (assignment == null)
+            return false;
+
+        context.TaskAssignments.Remove(assignment);
+        await context.SaveChangesAsync();
+
+        return true;
+    }
+
+    [Authorize]
     public async System.Threading.Tasks.Task<Models.Task> CompleteTask(
         AppDbContext context,
         [Service] IUserService userService,
+        ClaimsPrincipal claimsPrincipal,
+        Guid taskId)
+    {
+        var task = await FindTaskToCompleteAsync(context, userService, claimsPrincipal, taskId);
+
+        task.IsCompleted = true;
+        task.CompletedAt = DateTime.UtcNow;
+
+        await context.SaveChangesAsync();
+
+        return task;
+    }
+
+    [Authorize]
+    public async System.Threading.Tasks.Task<Models.Task> ReopenTask(
+        AppDbContext context,
+        [Service] IUserService userService,
+        ClaimsPrincipal claimsPrincipal,
+        Guid taskId)
+    {
+        var task = await FindTaskToCompleteAsync(context, userService, claimsPrincipal, taskId);
+
+        task.IsCompleted = false;
+        task.CompletedAt = null;
+
+        await context.SaveChangesAsync();
+
+        return task;
+    }
+
+    // A task the caller may complete or reopen: Guardians any family task, Children only their own
+    private static async System.Threading.Tasks.Task<Models.Task> FindTaskToCompleteAsync(
+        AppDbContext context,
+        IUserService userService,
         ClaimsPrincipal claimsPrincipal,
         Guid taskId)
     {
@@ -85,14 +171,8 @@ public class Mutation
         if (task == null)
             throw GraphQLErrors.NotFound("Task not found.");
 
-        // Children can only complete tasks assigned to them
         if (user.Role != UserRole.Guardian && task.TaskAssignments.All(ta => ta.UserId != user.Id))
-            throw GraphQLErrors.Forbidden("You can only complete tasks assigned to you.");
-
-        task.IsCompleted = true;
-        task.CompletedAt = DateTime.UtcNow;
-
-        await context.SaveChangesAsync();
+            throw GraphQLErrors.Forbidden("You can only complete or reopen tasks assigned to you.");
 
         return task;
     }
@@ -212,6 +292,13 @@ public class Mutation
 
 // Input types
 public record CreateTaskInput(
+    string Title,
+    string? Description,
+    DateTime? DueDate,
+    IReadOnlyList<Guid>? AssigneeIds);
+
+public record UpdateTaskInput(
+    Guid TaskId,
     string Title,
     string? Description,
     DateTime? DueDate);
