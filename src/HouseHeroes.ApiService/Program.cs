@@ -68,39 +68,6 @@ app.MapGraphQL();
 
 app.MapDefaultEndpoints();
 
-// Anonymous endpoint for testing - fetch all tasks
-app.MapGet("/api/tasks", async (AppDbContext context) =>
-{
-    var tasks = await context.Tasks
-        .Include(t => t.Family)
-        .Include(t => t.CreatedBy)
-        .Include(t => t.TaskAssignments)
-            .ThenInclude(ta => ta.User)
-        .Select(t => new
-        {
-            Id = t.Id,
-            Title = t.Title,
-            Description = t.Description,
-            DueDate = t.DueDate,
-            IsCompleted = t.IsCompleted,
-            CreatedAt = t.CreatedAt,
-            Family = new { Id = t.Family.Id, Name = t.Family.Name },
-            CreatedBy = new { Id = t.CreatedBy.Id, FirstName = t.CreatedBy.FirstName, LastName = t.CreatedBy.LastName },
-            AssignedUsers = t.TaskAssignments.Select(ta => new 
-            { 
-                Id = ta.User.Id, 
-                FirstName = ta.User.FirstName, 
-                LastName = ta.User.LastName,
-                Email = ta.User.Email
-            }).ToList()
-        })
-        .ToListAsync();
-    
-    return Results.Ok(tasks);
-})
-.WithName("GetAllTasks")
-.WithOpenApi();
-
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
@@ -111,5 +78,5 @@ if (app.Environment.IsDevelopment())
 
 app.Run();
 
-
-
+// Exposes Program to WebApplicationFactory in the integration tests
+public partial class Program;

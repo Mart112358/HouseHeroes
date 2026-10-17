@@ -26,14 +26,16 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
         
+    # The mobile app needs MAUI workloads and is built by the build-mobile-* jobs;
+    # the test project builds the API and its dependencies.
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore tests/HouseHeroes.ApiService.Tests
       
-    - name: Build solution
-      run: dotnet build --no-restore --configuration Release
+    - name: Build API and tests
+      run: dotnet build tests/HouseHeroes.ApiService.Tests --no-restore --configuration Release
       
     - name: Run tests
-      run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
+      run: dotnet test tests/HouseHeroes.ApiService.Tests --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
       
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4

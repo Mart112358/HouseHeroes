@@ -1,6 +1,7 @@
 using HouseHeroes.ApiService.Data;
 using HouseHeroes.ApiService.Models;
 using HouseHeroes.ApiService.Authentication;
+using HouseHeroes.ApiService.GraphQL;
 using HotChocolate.Authorization;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
@@ -9,50 +10,23 @@ namespace HouseHeroes.ApiService.GraphQL.Mutations;
 
 public class Mutation
 {
-    public async Task<Family> CreateFamily(AppDbContext context, CreateFamilyInput input)
+    [Authorize]
+    public async System.Threading.Tasks.Task<Models.Task> CreateTask(
+        AppDbContext context,
+        [Service] IUserService userService,
+        ClaimsPrincipal claimsPrincipal,
+        CreateTaskInput input)
     {
-        var family = new Family
-        {
-            Id = Guid.NewGuid(),
-            Name = input.Name,
-            CreatedAt = DateTime.UtcNow
-        };
+        var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
+        user.EnsureGuardian();
 
-        context.Families.Add(family);
-        await context.SaveChangesAsync();
-
-        return family;
-    }
-
-    public async Task<User> CreateUser(AppDbContext context, CreateUserInput input)
-    {
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
-            EntraUserId = input.EntraUserId,
-            Email = input.Email,
-            FirstName = input.FirstName,
-            LastName = input.LastName,
-            Role = input.Role,
-            FamilyId = input.FamilyId,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        context.Users.Add(user);
-        await context.SaveChangesAsync();
-
-        return user;
-    }
-
-    public async Task<Models.Task> CreateTask(AppDbContext context, CreateTaskInput input)
-    {
         var task = new Models.Task
         {
             Id = Guid.NewGuid(),
-            FamilyId = input.FamilyId,
+            FamilyId = user.FamilyId,
             Title = input.Title,
             Description = input.Description,
-            CreatedById = input.CreatedById,
+            CreatedById = user.Id,
             DueDate = input.DueDate,
             CreatedAt = DateTime.UtcNow,
             IsCompleted = false
@@ -64,9 +38,27 @@ public class Mutation
         return task;
     }
 
-    public async Task<TaskAssignment> AssignTask(AppDbContext context, AssignTaskInput input)
+    [Authorize]
+    public async System.Threading.Tasks.Task<TaskAssignment> AssignTask(
+        AppDbContext context,
+        [Service] IUserService userService,
+        ClaimsPrincipal claimsPrincipal,
+        AssignTaskInput input)
     {
-        var assignment = new TaskAssignment
+        var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
+        user.EnsureGuardian();
+
+        if (!await context.Tasks.AnyAsync(t => t.Id == input.TaskId && t.FamilyId == user.FamilyId))
+            throw GraphQLErrors.NotFound("Task not found.");
+
+        if (!await context.Users.AnyAsync(u => u.Id == input.UserId && u.FamilyId == user.FamilyId))
+            throw GraphQLErrors.NotFound("Family member not found.");
+
+        var assignment = await context.TaskAssignments.FindAsync(input.TaskId, input.UserId);
+        if (assignment != null)
+            return assignment;
+
+        assignment = new TaskAssignment
         {
             TaskId = input.TaskId,
             UserId = input.UserId
@@ -78,11 +70,24 @@ public class Mutation
         return assignment;
     }
 
-    public async Task<Models.Task> CompleteTask(AppDbContext context, Guid taskId)
+    [Authorize]
+    public async System.Threading.Tasks.Task<Models.Task> CompleteTask(
+        AppDbContext context,
+        [Service] IUserService userService,
+        ClaimsPrincipal claimsPrincipal,
+        Guid taskId)
     {
-        var task = await context.Tasks.FindAsync(taskId);
+        var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
+
+        var task = await context.Tasks
+            .Include(t => t.TaskAssignments)
+            .FirstOrDefaultAsync(t => t.Id == taskId && t.FamilyId == user.FamilyId);
         if (task == null)
-            throw new ArgumentException("Task not found");
+            throw GraphQLErrors.NotFound("Task not found.");
+
+        // Children can only complete tasks assigned to them
+        if (user.Role != UserRole.Guardian && task.TaskAssignments.All(ta => ta.UserId != user.Id))
+            throw GraphQLErrors.Forbidden("You can only complete tasks assigned to you.");
 
         task.IsCompleted = true;
         task.CompletedAt = DateTime.UtcNow;
@@ -92,9 +97,17 @@ public class Mutation
         return task;
     }
 
-    public async Task<bool> DeleteTask(AppDbContext context, Guid taskId)
+    [Authorize]
+    public async System.Threading.Tasks.Task<bool> DeleteTask(
+        AppDbContext context,
+        [Service] IUserService userService,
+        ClaimsPrincipal claimsPrincipal,
+        Guid taskId)
     {
-        var task = await context.Tasks.FindAsync(taskId);
+        var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
+        user.EnsureGuardian();
+
+        var task = await context.Tasks.FirstOrDefaultAsync(t => t.Id == taskId && t.FamilyId == user.FamilyId);
         if (task == null)
             return false;
 
@@ -184,21 +197,9 @@ public class Mutation
 }
 
 // Input types
-public record CreateFamilyInput(string Name);
-
-public record CreateUserInput(
-    string EntraUserId,
-    string Email,
-    string FirstName,
-    string LastName,
-    UserRole Role,
-    Guid FamilyId);
-
 public record CreateTaskInput(
-    Guid FamilyId,
     string Title,
     string? Description,
-    Guid CreatedById,
     DateTime? DueDate);
 
 public record AssignTaskInput(

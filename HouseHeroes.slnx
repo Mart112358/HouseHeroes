@@ -5,4 +5,7 @@
     <Project Path="src/HouseHeroes.Mobile/HouseHeroes.Mobile.csproj" />
     <Project Path="src/HouseHeroes.ServiceDefaults/HouseHeroes.ServiceDefaults.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HouseHeroes.ApiService.Tests/HouseHeroes.ApiService.Tests.csproj" />
+  </Folder>
 </Solution>
