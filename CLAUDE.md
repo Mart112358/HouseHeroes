@@ -57,6 +57,7 @@ Detailed Azure/Terraform setup docs are in `docs/README-Azure-Setup.md` and `doc
 - Identity is Entra ID; there is no local password auth. `User.EntraUserId` links a token to a DB user. `UserService` resolves the current user from claims (`ClaimsPrincipalExtensions`); a signed-in user has no DB record until `RegisterNewUser` creates one.
 - Each `Family` is a logical tenant. Every query and mutation is `[Authorize]` and scoped to the caller's family; never take a family or user ID from input as the caller's identity.
 - Mutations resolve the caller with `userService.GetRegisteredUserAsync(claimsPrincipal)` (`GraphQL/CallerGuards.cs`) and check roles with `user.EnsureGuardian()`. Guardians manage tasks; Children complete tasks assigned to them.
+- Joining a family: a Guardian calls `createFamilyInvite(role)` and shares the code; the new user calls `registerNewUser(input: { createNewFamily: false, inviteCode })` and gets the invite's role. Family and member mutations live in `GraphQL/Mutations/FamilyMutations.cs` (a `Mutation` type extension).
 - Errors use `GraphQLErrors` codes: `NOT_REGISTERED`, `FORBIDDEN`, `NOT_FOUND`. Records in another family are reported as `NOT_FOUND`.
 - Tests authenticate with the `X-Test-User` header (an Entra user ID) via `TestAuthHandler`, and create isolated data with `TestData`.
 - Plan and decisions: `docs/ROADMAP.md`.

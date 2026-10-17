@@ -12,7 +12,7 @@ Each milestone ends with something a family member can do in the running app. In
 
 ## Where things stand (2026-10-17)
 
-- **API:** the data model (Family, User, Task, TaskAssignment) is in place. As of Milestone 1, every operation requires sign-in and is limited to the caller's family, covered by integration tests. Registration still joins a family by its ID.
+- **API:** the data model (Family, User, Task, TaskAssignment) is in place. As of Milestone 1, every operation requires sign-in and is limited to the caller's family, covered by integration tests. Invite codes and member management are in the API (Milestone 2).
 - **Mobile:** only the login and welcome screens exist. The welcome screen's create/join actions are stubs. `schema.graphql` and the `.graphql` operations are stale, calling fields the API no longer has. The GraphQL client doesn't send the access token. The Tasks, Family and Settings tabs all show the same placeholder page.
 - **Identity:** the app and API use `login.microsoftonline.com` as the authority for the External ID tenant. External ID expects `househeroesapp.ciamlogin.com`. Until that's fixed, sign-up flows won't show and the API will likely reject real tokens.
 - **Infra:** Terraform and the deploy scripts are ready but untested (branch `infra/deploy-pipeline-fixes`).
@@ -37,9 +37,11 @@ PRD flow 1: create an account, create a family, add members.
 - [ ] Fix the External ID authority (`ciamlogin.com`) in the app and API; confirm `email`, `given_name` and `family_name` claims reach the API
 - [ ] Mobile GraphQL client sends the MSAL access token; regenerate `schema.graphql` from the running API
 - [ ] After sign-in, route by registration state: unregistered users see the welcome screen, registered users see the main tabs
-- [ ] Guardians create invite codes (single-use, expiring, role chosen by the Guardian); `registerNewUser` joins by code instead of family ID
-- [ ] Remove the unused `UserService.GetOrCreateUserAsync` (it creates users with no family, which violates the foreign key)
-- [ ] Family tab: list members; Guardians edit a member's name and role, remove members, and create invites
+- [x] Guardians create invite codes (single-use, expire after 7 days, role chosen by the Guardian); `registerNewUser` joins by code instead of family ID
+- [x] Remove the unused `UserService.GetOrCreateUserAsync` (it creates users with no family, which violates the foreign key)
+- [x] API: Guardians edit a member's name and role and remove members; a family always keeps at least one Guardian
+- [ ] Family tab: list members; Guardians edit and remove members and create invites (show the code to share)
+- [ ] Welcome screen: create a family, or join with an invite code
 - [ ] Mobile build works locally (MAUI workload for the .NET 9 SDK) for iOS and Android
 
 **Done when:** a parent signs up, creates a family and invites a co-parent and a child, and both join from their own phones.

@@ -39,6 +39,7 @@ builder.Services
     .AddGraphQLServer()
     .AddQueryType<Query>()
     .AddMutationType<Mutation>()
+    .AddTypeExtension<FamilyMutations>()
     .AddProjections()
     .AddFiltering()
     .AddSorting()

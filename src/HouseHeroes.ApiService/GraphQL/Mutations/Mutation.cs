@@ -136,8 +136,9 @@ public class Mutation
             };
         }
 
-        // Create or get family
+        // Create a family, or join one with an invite
         Family family;
+        FamilyInvite? invite = null;
         if (input.CreateNewFamily)
         {
             family = new Family
@@ -148,24 +149,23 @@ public class Mutation
             };
             context.Families.Add(family);
         }
-        else if (input.JoinFamilyId.HasValue)
+        else if (!string.IsNullOrWhiteSpace(input.InviteCode))
         {
-            family = await context.Families.FindAsync(input.JoinFamilyId.Value);
-            if (family is null)
-            {
-                return new RegisterNewUserResult 
-                { 
-                    Success = false, 
-                    Message = "Family not found" 
-                };
-            }
+            var code = input.InviteCode.Trim().ToUpperInvariant();
+            invite = await context.FamilyInvites
+                .FirstOrDefaultAsync(i => i.Code == code && i.UsedAt == null && i.ExpiresAt > DateTime.UtcNow);
+            if (invite is null)
+                return InvalidInvite();
+
+            family = await context.Families.SingleAsync(f => f.Id == invite.FamilyId);
+            invite.UsedAt = DateTime.UtcNow;
         }
         else
         {
             return new RegisterNewUserResult 
             { 
                 Success = false, 
-                Message = "Must either create new family or join existing family" 
+                Message = "Must either create a new family or join one with an invite code" 
             };
         }
 
@@ -177,14 +177,22 @@ public class Mutation
             Email = claimsPrincipal.GetEmail(),
             FirstName = claimsPrincipal.GetFirstName(),
             LastName = claimsPrincipal.GetLastName(),
-            Role = input.CreateNewFamily ? UserRole.Guardian : UserRole.Child,
+            Role = invite?.Role ?? UserRole.Guardian,
             FamilyId = family.Id,
             CreatedAt = DateTime.UtcNow,
             LastLoginAt = DateTime.UtcNow
         };
 
         context.Users.Add(user);
-        await context.SaveChangesAsync();
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Someone else used the invite since we read it (UsedAt is a concurrency token)
+            return InvalidInvite();
+        }
 
         return new RegisterNewUserResult 
         { 
@@ -194,6 +202,12 @@ public class Mutation
             Family = family
         };
     }
+
+    private static RegisterNewUserResult InvalidInvite() => new()
+    {
+        Success = false,
+        Message = "This invite code is invalid, already used, or expired."
+    };
 }
 
 // Input types
@@ -209,7 +223,7 @@ public record AssignTaskInput(
 public record RegisterNewUserInput(
     bool CreateNewFamily,
     string? FamilyName,
-    Guid? JoinFamilyId);
+    string? InviteCode);
 
 public class RegisterNewUserResult
 {

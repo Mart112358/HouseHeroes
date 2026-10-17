@@ -43,6 +43,51 @@ namespace HouseHeroes.ApiService.Migrations
                     b.ToTable("Families");
                 });
 
+            modelBuilder.Entity("HouseHeroes.ApiService.Models.FamilyInvite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("FamilyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("FamilyId");
+
+                    b.ToTable("FamilyInvites");
+                });
+
             modelBuilder.Entity("HouseHeroes.ApiService.Models.Task", b =>
                 {
                     b.Property<Guid>("Id")
@@ -156,6 +201,21 @@ namespace HouseHeroes.ApiService.Migrations
                     b.HasIndex("FamilyId");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("HouseHeroes.ApiService.Models.FamilyInvite", b =>
+                {
+                    b.HasOne("HouseHeroes.ApiService.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("HouseHeroes.ApiService.Models.Family", null)
+                        .WithMany()
+                        .HasForeignKey("FamilyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("HouseHeroes.ApiService.Models.Task", b =>

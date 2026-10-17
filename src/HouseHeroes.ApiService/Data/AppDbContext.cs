@@ -9,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<User> Users { get; set; }
     public DbSet<Models.Task> Tasks { get; set; }
     public DbSet<TaskAssignment> TaskAssignments { get; set; }
+    public DbSet<FamilyInvite> FamilyInvites { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -64,6 +65,30 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
             entity.Property(e => e.IsCompleted).HasDefaultValue(false);
+        });
+
+        // FamilyInvite configuration. No navigation properties, so invite codes
+        // can't be reached through the GraphQL family graph.
+        modelBuilder.Entity<FamilyInvite>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(16);
+            entity.Property(e => e.Role).HasConversion<string>();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            entity.HasIndex(e => e.Code).IsUnique();
+
+            // Lets registration claim an invite only if it is still unused
+            entity.Property(e => e.UsedAt).IsConcurrencyToken();
+
+            entity.HasOne<Family>()
+                  .WithMany()
+                  .HasForeignKey(e => e.FamilyId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<User>()
+                  .WithMany()
+                  .HasForeignKey(e => e.CreatedById)
+                  .OnDelete(DeleteBehavior.NoAction);
         });
 
         // TaskAssignment configuration (many-to-many)

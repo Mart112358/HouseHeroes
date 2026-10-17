@@ -25,14 +25,46 @@ public class TestData(IServiceProvider services)
         return new TestFamily(family, guardian, child);
     }
 
-    public async System.Threading.Tasks.Task<Models.Task> CreateTaskAsync(TestFamily family, params User[] assignees)
+    public async System.Threading.Tasks.Task<User> AddMemberAsync(TestFamily family, UserRole role)
+    {
+        var member = NewUser(family.Family, role);
+        await SaveAsync(db => db.Users.Add(member));
+        return member;
+    }
+
+    public async System.Threading.Tasks.Task<FamilyInvite> CreateInviteAsync(
+        TestFamily family,
+        UserRole role,
+        DateTime? expiresAt = null,
+        DateTime? usedAt = null)
+    {
+        var invite = new FamilyInvite
+        {
+            Id = Guid.NewGuid(),
+            FamilyId = family.Family.Id,
+            Code = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant(),
+            Role = role,
+            CreatedById = family.Guardian.Id,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = expiresAt ?? DateTime.UtcNow.AddDays(7),
+            UsedAt = usedAt
+        };
+
+        await SaveAsync(db => db.FamilyInvites.Add(invite));
+        return invite;
+    }
+
+    public System.Threading.Tasks.Task<Models.Task> CreateTaskAsync(TestFamily family, params User[] assignees) =>
+        CreateTaskByAsync(family, family.Guardian, assignees);
+
+    public async System.Threading.Tasks.Task<Models.Task> CreateTaskByAsync(TestFamily family, User createdBy, params User[] assignees)
     {
         var task = new Models.Task
         {
             Id = Guid.NewGuid(),
             FamilyId = family.Family.Id,
             Title = "Test task",
-            CreatedById = family.Guardian.Id,
+            CreatedById = createdBy.Id,
             CreatedAt = DateTime.UtcNow
         };
 
