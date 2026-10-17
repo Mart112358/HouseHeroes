@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useMemo, type PropsWithChildren } from 'react';
 
 import { AuthProvider, useAuth } from '@/auth/auth-provider';
+import { cancelReminders } from '@/features/reminder-scheduler';
 import { createApolloClient } from '@/graphql/client';
 import { CurrentUserDocument } from '@/graphql/generated/graphql';
 
@@ -23,9 +24,11 @@ function ApiProvider({ children }: PropsWithChildren) {
   const { status, getAccessToken } = useAuth();
   const client = useMemo(() => createApolloClient(getAccessToken), [getAccessToken]);
 
-  // Don't show one user's cached family data to the next
+  // Don't show one user's cached family data, or remind them about their tasks, once they sign out
   useEffect(() => {
-    if (status === 'signedOut') client.clearStore();
+    if (status !== 'signedOut') return;
+    client.clearStore();
+    cancelReminders().catch(() => undefined);
   }, [status, client]);
 
   return <ApolloProvider client={client}>{children}</ApolloProvider>;

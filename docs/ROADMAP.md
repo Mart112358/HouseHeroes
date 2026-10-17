@@ -64,8 +64,9 @@ PRD flows 2, 3 and 5.
 
 PRD: notifications for upcoming or overdue tasks.
 
-- [ ] Local notifications on each device for the user's own assigned tasks (due soon, overdue), rescheduled whenever tasks are loaded
-- [ ] Notification permission prompt and a setting to turn reminders off
+- [x] Local notifications on each device for the user's own assigned tasks: "Due today" at 5 pm on the due day (or an hour before, if due earlier) and "Overdue" at 9 am the next day, rescheduled whenever tasks change and cancelled on sign-out
+- [x] Notification permission prompt (only once there is something to remind about) and a Settings switch, with a link to system settings when notifications are blocked
+- [ ] Check reminders fire on a real iPhone and Android phone (needs sign-in working)
 
 PRD flow 4 says parents "receive a notification or can view updates". The Guardians' view in Milestone 3 covers this for the MVP. Server push notifications when a child completes a task come after launch.
 
