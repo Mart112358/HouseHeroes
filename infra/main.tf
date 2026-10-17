@@ -22,8 +22,12 @@ provider "azurerm" {
 
 # Data sources
 data "azurerm_client_config" "current" {}
-data "azurerm_resource_group" "main" {
-  name = var.resource_group_name
+
+# Resource Group (managed by Terraform)
+resource "azurerm_resource_group" "main" {
+  name     = var.resource_group_name
+  location = var.location
+  tags     = var.tags
 }
 
 # Local variables
@@ -47,7 +51,7 @@ resource "random_password" "sql_admin_password" {
 resource "azurerm_log_analytics_workspace" "main" {
   name                = local.log_analytics_workspace_name
   location            = var.location
-  resource_group_name = data.azurerm_resource_group.main.name
+  resource_group_name = azurerm_resource_group.main.name
   sku                 = "PerGB2018"
   retention_in_days   = 90
 
@@ -58,7 +62,7 @@ resource "azurerm_log_analytics_workspace" "main" {
 resource "azurerm_application_insights" "main" {
   name                = local.application_insights_name
   location            = var.location
-  resource_group_name = data.azurerm_resource_group.main.name
+  resource_group_name = azurerm_resource_group.main.name
   application_type    = "web"
   workspace_id        = azurerm_log_analytics_workspace.main.id
 
@@ -68,7 +72,7 @@ resource "azurerm_application_insights" "main" {
 # Container Registry
 resource "azurerm_container_registry" "main" {
   name                = local.container_registry_name
-  resource_group_name = data.azurerm_resource_group.main.name
+  resource_group_name = azurerm_resource_group.main.name
   location            = var.location
   sku                 = "Basic"
   admin_enabled       = true
@@ -79,7 +83,7 @@ resource "azurerm_container_registry" "main" {
 # SQL Server
 resource "azurerm_mssql_server" "main" {
   name                         = local.sql_server_name
-  resource_group_name          = data.azurerm_resource_group.main.name
+  resource_group_name          = azurerm_resource_group.main.name
   location                     = var.location
   version                      = "12.0"
   administrator_login          = var.sql_server_admin_login
@@ -114,7 +118,7 @@ resource "azurerm_mssql_firewall_rule" "allow_azure_services" {
 resource "azurerm_container_app_environment" "main" {
   name                       = local.container_app_environment_name
   location                   = var.location
-  resource_group_name        = data.azurerm_resource_group.main.name
+  resource_group_name        = azurerm_resource_group.main.name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
 
   tags = var.tags
@@ -124,7 +128,7 @@ resource "azurerm_container_app_environment" "main" {
 resource "azurerm_container_app" "main" {
   name                         = local.container_app_name
   container_app_environment_id = azurerm_container_app_environment.main.id
-  resource_group_name          = data.azurerm_resource_group.main.name
+  resource_group_name          = azurerm_resource_group.main.name
   revision_mode                = "Single"
 
   template {
@@ -133,7 +137,7 @@ resource "azurerm_container_app" "main" {
 
     container {
       name   = "househeroes-api"
-      image  = "mcr.microsoft.com/dotnet/samples:aspnetapp" # Placeholder image for initial deployment
+      image  = "mcr.microsoft.com/dotnet/samples:aspnetapp" # Placeholder image; deploy-app.sh sets the real one
       cpu    = 0.5
       memory = "1Gi"
 
@@ -192,13 +196,18 @@ resource "azurerm_container_app" "main" {
   }
 
   tags = var.tags
+
+  # deploy-app.sh owns the image; don't revert it on terraform apply
+  lifecycle {
+    ignore_changes = [template[0].container[0].image]
+  }
 }
 
 # Migration Job Container App
 resource "azurerm_container_app_job" "migration" {
   name                         = "${var.app_name}-migration-job"
   location                     = var.location
-  resource_group_name          = data.azurerm_resource_group.main.name
+  resource_group_name          = azurerm_resource_group.main.name
   container_app_environment_id = azurerm_container_app_environment.main.id
 
   replica_timeout_in_seconds = 1800
@@ -211,11 +220,10 @@ resource "azurerm_container_app_job" "migration" {
 
   template {
     container {
-      name    = "migration"
-      image   = "mcr.microsoft.com/dotnet/runtime:9.0" # Placeholder image for initial deployment
-      cpu     = 0.5
-      memory  = "1Gi"
-      command = ["sleep", "30"] # Placeholder command
+      name   = "migration"
+      image  = "mcr.microsoft.com/dotnet/samples:aspnetapp" # Placeholder image; deploy-app.sh sets the real one
+      cpu    = 0.5
+      memory = "1Gi"
 
       env {
         name        = "ConnectionStrings__househeroes"
@@ -241,4 +249,9 @@ resource "azurerm_container_app_job" "migration" {
   }
 
   tags = var.tags
+
+  # deploy-app.sh owns the image; don't revert it on terraform apply
+  lifecycle {
+    ignore_changes = [template[0].container[0].image]
+  }
 }

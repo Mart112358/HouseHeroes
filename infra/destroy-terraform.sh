@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # HouseHeroes Azure Infrastructure Destruction Script (Terraform)
-# Usage: ./destroy-terraform.sh <environment> [resource-group-name]
+# Usage: ./destroy-terraform.sh <environment> [--auto-approve]
 
 set -e
 
 ENVIRONMENT=${1:-staging}
-RESOURCE_GROUP=${2:-"rg-househeroes-$ENVIRONMENT"}
+RESOURCE_GROUP="rg-househeroes-$ENVIRONMENT"
 TF_VAR_FILE="${ENVIRONMENT}.tfvars"
 
 echo "Destroying HouseHeroes infrastructure with Terraform for environment: $ENVIRONMENT"
@@ -57,11 +57,6 @@ fi
 # Apply the destroy plan
 echo "Destroying infrastructure..."
 terraform apply destroy.tfplan
-
-# Clean up service principal
-echo "Cleaning up service principal..."
-SP_NAME="sp-househeroes-github-$ENVIRONMENT"
-az ad sp delete --id $(az ad sp list --display-name "$SP_NAME" --query "[0].appId" -o tsv) 2>/dev/null || echo "Service principal not found or already deleted"
 
 # Clean up plan files
 rm -f tfplan destroy.tfplan

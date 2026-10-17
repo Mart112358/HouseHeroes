@@ -4,136 +4,58 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-HouseHeroes is a family task management application designed for modern families, including blended families and co-parenting households. The app helps manage and schedule household tasks and chores with support for complex living arrangements like shared custody.
+HouseHeroes is a family task management app for modern families, including blended families and co-parenting households with shared custody. Product requirements live in `docs/PRDs/inception.md`.
 
-## Technology Stack
+Stack: .NET 9, .NET Aspire (local orchestration), ASP.NET Core + HotChocolate 15 GraphQL, EF Core 9 on SQL Server, .NET MAUI mobile client (StrawberryShake GraphQL client, MSAL auth), Microsoft Entra ID for identity, Terraform on Azure Container Apps.
 
-- **Framework**: .NET 9 with .NET Aspire for distributed application development
-- **Frontend**: 
-  - .NET MAUI mobile app via HouseHeroes.Mobile (iOS, Android, macOS, Windows)
-- **Backend API**: ASP.NET Core Web API via HouseHeroes.ApiService
-- **Orchestration**: .NET Aspire AppHost for local development
-- **Shared Services**: Common telemetry, health checks, and service discovery via HouseHeroes.ServiceDefaults
+## Commands
 
-## Development Commands
+The solution file is `HouseHeroes.slnx`.
 
-### Running the Application
 ```bash
-# Run the entire application stack (recommended for development)
+# Run the backend stack (SQL Server container + API). Prompts for the `sql-password` Aspire parameter if not set.
 dotnet run --project src/HouseHeroes.AppHost
 
-# Run individual services (not recommended - use AppHost instead)
-dotnet run --project src/HouseHeroes.ApiService
+# Build
+dotnet build
+dotnet build src/HouseHeroes.Mobile -f net9.0-android   # also net9.0-ios, net9.0-maccatalyst; net9.0-windows10.0.19041.0 only on Windows (requires `dotnet workload install maui`)
 
-# Run mobile app (requires platform-specific setup)
-dotnet build src/HouseHeroes.Mobile -f net9.0-android
-dotnet build src/HouseHeroes.Mobile -f net9.0-ios
-dotnet build src/HouseHeroes.Mobile -f net9.0-maccatalyst
-# On Windows: dotnet build src/HouseHeroes.Mobile -f net9.0-windows10.0.19041.0
-```
+# Tests: no test projects exist yet, though CI runs `dotnet test`. Single test, once added:
+dotnet test --filter "FullyQualifiedName~Namespace.Class.Method"
 
-### Database Commands
-```bash
-# Add new migration (after model changes)
+# EF Core migrations (after changing Models/ or AppDbContext)
 dotnet ef migrations add MigrationName --project src/HouseHeroes.ApiService
 
-# Apply migrations manually (usually done automatically)
-dotnet ef database update --project src/HouseHeroes.ApiService
+# Regenerate the mobile GraphQL client schema after API schema changes (API must be running on localhost:5528)
+cd src/HouseHeroes.Mobile && dotnet tool restore && dotnet graphql update
 ```
 
-### Building
+### Deployment (run from `infra/`)
+
 ```bash
-# Build entire solution
-dotnet build
-
-# Build specific projects
-dotnet build src/HouseHeroes.ApiService
-
-# Build mobile app for specific platforms
-dotnet build src/HouseHeroes.Mobile -f net9.0-android
-dotnet build src/HouseHeroes.Mobile -f net9.0-ios
-dotnet build src/HouseHeroes.Mobile -f net9.0-maccatalyst
-```
-
-### Testing
-```bash
-# Run tests (when test projects are added)
-dotnet test
-```
-
-### Infrastructure Deployment
-```bash
-# Deploy to Azure using Terraform (recommended)
-cd infra
-./deploy-terraform.sh staging
-./deploy-terraform.sh production
-
-# Destroy Azure infrastructure
+./deploy-terraform.sh staging        # provision infra incl. resource group (uses staging.tfvars / production.tfvars)
+./deploy-app.sh staging [image-tag]  # build `final` + `migration` Dockerfile targets (linux/amd64), push to ACR, run migration job and wait, then update Container App
 ./destroy-terraform.sh staging
-
-# Manual Terraform commands
-terraform init
-terraform plan -var-file="staging.tfvars"
-terraform apply -var-file="staging.tfvars"
 ```
+
+Terraform owns the resource group but ignores image changes on the Container App and migration job; `deploy-app.sh` owns the images. Terraform state is local and shared between environments, so `deploy-app.sh` checks that the state's `environment` output matches its argument.
+
+Detailed Azure/Terraform setup docs are in `docs/README-Azure-Setup.md` and `docs/README-Terraform-Setup.md`. CI (`.github/workflows/ci-cd.yml`) builds/tests, builds the mobile targets, and runs a vulnerable-package scan.
 
 ## Architecture
 
-### Service Architecture
-- **HouseHeroes.AppHost**: .NET Aspire orchestrator that manages the development environment, service discovery, and inter-service communication
-- **HouseHeroes.Mobile**: .NET MAUI cross-platform mobile app (iOS, Android, macOS, Windows)
-- **HouseHeroes.ApiService**: Web API backend with GraphQL and OpenAPI support, implements the full data model with family task management
-- **HouseHeroes.ServiceDefaults**: Shared library containing common services (telemetry, health checks, resilience patterns, service discovery)
+- **HouseHeroes.AppHost**: Aspire orchestrator. Adds a SQL Server container with a `househeroes` database and wires it into the API via connection string reference.
+- **HouseHeroes.ServiceDefaults**: Shared OpenTelemetry, resilience, service discovery, and health checks. `/health` and `/alive` are mapped **only in Development**.
+- **HouseHeroes.ApiService**: All backend logic. `Program.cs` sets up JWT bearer auth (Entra ID), GraphQL (`/graphql`, with projections/filtering/sorting), and an anonymous REST `GET /api/tasks` test endpoint. In Development only, it applies migrations and runs `DatabaseSeeder` on startup (two sample families: Paquin with shared custody, Johnson as a blended family). In Azure, migrations run through a separate Container App job (`househeroes-migration-job`).
+- **HouseHeroes.Mobile**: MAUI app using CommunityToolkit.Mvvm ViewModels, DI-registered pages in `MauiProgram.cs`, and MSAL login (`Services/AuthenticationService`). The GraphQL client (`HouseHeroesClient`) is **generated by StrawberryShake** from the `.graphql` files under `Queries/` and `Mutations/` plus `schema.graphql`. To add an operation, write a new `.graphql` file and rebuild; don't hand-write client code. The API endpoint and Entra ID settings come from the embedded `appsettings.json`.
 
-### Key Features (from PRD)
-- User management with family profiles
-- Task/chore creation and assignment to multiple family members
-- Support for Guardian and Child roles
-- Notification system for task reminders
-- Multi-tenant architecture (each family as logical tenant)
+### Auth and multi-tenancy model
 
-### Data Model (Implemented)
-- **User**: Email/password auth, roles (Guardian/Child), family association
-- **Family**: Container for users and tasks
-- **Task**: Title, description, assignments, completion status, due dates
-- **TaskAssignment**: Many-to-many relationship between tasks and users
+- Identity is Entra ID; there is no local password auth. `User.EntraUserId` links a token to a DB user. `UserService` resolves the current user from claims (`ClaimsPrincipalExtensions`) and can create users on first login (default role `Child`, unassigned family).
+- Each `Family` is a logical tenant. `[Authorize]` queries (`GetMyFamily`, `GetMyTasks`, `GetFamilyMembers`, etc.) scope data to the caller's family, and so does the `RegisterNewUser` mutation.
+- **Not yet secured:** `GetAllTasks` and the basic CRUD mutations (`CreateFamily`, `CreateUser`, `CreateTask`, `AssignTask`, `CompleteTask`, `DeleteTask`) have no `[Authorize]` and no family scoping.
 
-### Technology Decisions
-- Uses .NET Aspire for local development experience with built-in service discovery
-- .NET MAUI for cross-platform mobile development targeting the PRD's mobile-first approach
-- ASP.NET Core Identity planned for authentication
-- Entity Framework Core 9 + SQL Server with Aspire hosting for data persistence
-- HotChocolate v15 GraphQL API for data access
-- OpenTelemetry configured for observability
+### Gotchas
 
-### Database Infrastructure
-- **SQL Server**: Containerized via Aspire hosting
-- **Connection Management**: Automatic via Aspire service discovery
-- **Migrations**: EF Core migrations applied automatically on startup
-- **Seed Data**: Realistic family scenarios with two families (Paquin divorced/shared custody, Johnson blended family) loaded in development
-- **Health Checks**: Database connectivity monitoring at `/health/database`
-
-### API Endpoints
-- **GraphQL**: `/graphql` - Full CRUD operations for all entities (authenticated)
-- **GraphQL Anonymous**: `/graphql` - Anonymous query `getAllTasks` for testing/development
-- **REST Anonymous**: `/api/tasks` - Anonymous endpoint returning all tasks with related data
-- **Health Check**: `/health/database` - Database connection status
-- **OpenAPI**: `/openapi` - REST API documentation (development)
-
-### Mobile App Details
-- **Platforms**: iOS 15.0+, Android API 21+, macOS Catalyst 15.0+, Windows 10.0.17763.0+
-- **App ID**: com.companyname.househeroes.mobile
-- **Architecture**: Standard MAUI template with Community Toolkit MVVM
-- **Note**: Mobile app connects to GraphQL API for data
-
-## Current State
-
-The project has a working foundation with:
-- Complete data model implementation (User, Family, Task, TaskAssignment)
-- GraphQL API with full CRUD operations and anonymous testing endpoints
-- Database seeding with realistic family scenarios
-- .NET Aspire orchestration for development
-- Entity Framework migrations and SQL Server integration
-- Terraform infrastructure as code for Azure deployment
-
-The mobile app currently uses a basic MAUI template and needs to be connected to the GraphQL API. Authentication and authorization scaffolding is in place with EntraID/JWT configuration but not fully implemented.
+- The domain entity `Models.Task` collides with `System.Threading.Tasks.Task`. Existing code writes `System.Threading.Tasks.Task<T>` for async return types and `Models.Task` for the entity. Follow that convention.
+- The mobile GraphQL endpoint `http://localhost:5528/graphql` is hard-coded in both `src/HouseHeroes.Mobile/appsettings.json` and `.graphqlrc.json`.

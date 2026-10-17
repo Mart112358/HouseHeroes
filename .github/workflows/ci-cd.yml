@@ -11,7 +11,6 @@ env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   AZURE_WEBAPP_NAME: 'househeroes-api'
-  AZURE_WEBAPP_PACKAGE_PATH: './publish'
   AZURE_CONTAINER_REGISTRY: 'househeroesacr.azurecr.io'
 
 jobs:
@@ -269,46 +268,9 @@ jobs:
           -var="sql_server_admin_password=${{ secrets.SQL_SERVER_ADMIN_PASSWORD_STAGING }}" \
           -auto-approve
         
-    - name: Get Terraform Outputs
+    - name: Build, push, migrate and deploy (Staging)
       working-directory: ./infra
-      id: terraform
-      run: |
-        echo "acr_login_server=$(terraform output -raw container_registry_login_server)" >> $GITHUB_OUTPUT
-        echo "acr_name=$(terraform output -raw container_registry_name)" >> $GITHUB_OUTPUT
-        echo "acr_username=$(terraform output -raw container_registry_admin_username)" >> $GITHUB_OUTPUT
-        echo "acr_password=$(terraform output -raw container_registry_admin_password)" >> $GITHUB_OUTPUT
-        
-    - name: Restore dependencies
-      run: dotnet restore
-      
-    - name: Build for staging
-      run: dotnet build --configuration Release
-      
-    - name: Publish API
-      run: dotnet publish src/HouseHeroes.ApiService -c Release -o ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-      
-    - name: Create Dockerfile for API
-      run: |
-        cat > Dockerfile << EOF
-        FROM mcr.microsoft.com/dotnet/aspnet:9.0
-        WORKDIR /app
-        COPY ${{ env.AZURE_WEBAPP_PACKAGE_PATH }} .
-        EXPOSE 8080
-        ENTRYPOINT ["dotnet", "HouseHeroes.ApiService.dll"]
-        EOF
-      
-    - name: Build and push Docker image to ACR
-      run: |
-        docker build -t ${{ steps.terraform.outputs.acr_login_server }}/househeroes-api:staging-${{ github.sha }} .
-        docker login ${{ steps.terraform.outputs.acr_login_server }} -u ${{ steps.terraform.outputs.acr_username }} -p ${{ steps.terraform.outputs.acr_password }}
-        docker push ${{ steps.terraform.outputs.acr_login_server }}/househeroes-api:staging-${{ github.sha }}
-        
-    - name: Deploy to Azure Container Apps (Staging)
-      run: |
-        az containerapp update \
-          --name househeroes-api-staging \
-          --resource-group "rg-househeroes-staging" \
-          --image ${{ steps.terraform.outputs.acr_login_server }}/househeroes-api:staging-${{ github.sha }}
+      run: ./deploy-app.sh staging staging-${{ github.sha }}
 
   deploy-production:
     name: Deploy to Azure Production (Terraform)
@@ -355,51 +317,6 @@ jobs:
           -var="sql_server_admin_password=${{ secrets.SQL_SERVER_ADMIN_PASSWORD_PRODUCTION }}" \
           -auto-approve
         
-    - name: Get Terraform Outputs
+    - name: Build, push, migrate and deploy (Production)
       working-directory: ./infra
-      id: terraform
-      run: |
-        echo "acr_login_server=$(terraform output -raw container_registry_login_server)" >> $GITHUB_OUTPUT
-        echo "acr_name=$(terraform output -raw container_registry_name)" >> $GITHUB_OUTPUT
-        echo "acr_username=$(terraform output -raw container_registry_admin_username)" >> $GITHUB_OUTPUT
-        echo "acr_password=$(terraform output -raw container_registry_admin_password)" >> $GITHUB_OUTPUT
-        
-    - name: Restore dependencies
-      run: dotnet restore
-      
-    - name: Build for production
-      run: dotnet build --configuration Release
-      
-    - name: Publish API
-      run: dotnet publish src/HouseHeroes.ApiService -c Release -o ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-      
-    - name: Create Dockerfile for API
-      run: |
-        cat > Dockerfile << EOF
-        FROM mcr.microsoft.com/dotnet/aspnet:9.0
-        WORKDIR /app
-        COPY ${{ env.AZURE_WEBAPP_PACKAGE_PATH }} .
-        EXPOSE 8080
-        ENTRYPOINT ["dotnet", "HouseHeroes.ApiService.dll"]
-        EOF
-      
-    - name: Build and push Docker image to ACR
-      run: |
-        docker build -t ${{ steps.terraform.outputs.acr_login_server }}/househeroes-api:prod-${{ github.sha }} .
-        docker build -t ${{ steps.terraform.outputs.acr_login_server }}/househeroes-api:latest .
-        docker login ${{ steps.terraform.outputs.acr_login_server }} -u ${{ steps.terraform.outputs.acr_username }} -p ${{ steps.terraform.outputs.acr_password }}
-        docker push ${{ steps.terraform.outputs.acr_login_server }}/househeroes-api:prod-${{ github.sha }}
-        docker push ${{ steps.terraform.outputs.acr_login_server }}/househeroes-api:latest
-        
-    - name: Deploy to Azure Container Apps (Production)
-      run: |
-        az containerapp update \
-          --name househeroes-api-production \
-          --resource-group "rg-househeroes-production" \
-          --image ${{ steps.terraform.outputs.acr_login_server }}/househeroes-api:prod-${{ github.sha }}
-            
-    - name: Run Database Migrations (Production)
-      run: |
-        az containerapp job start \
-          --name househeroes-migration-job \
-          --resource-group "rg-househeroes-production"
+      run: ./deploy-app.sh production prod-${{ github.sha }}

@@ -33,6 +33,9 @@ terraform plan
 
 # Deploy production environment  
 ./deploy-terraform.sh production
+
+# Build, migrate and deploy the application (after deploy-terraform.sh)
+./deploy-app.sh staging [image-tag]
 ```
 
 #### Using Terraform directly
@@ -51,6 +54,7 @@ terraform apply -var-file="production.tfvars" -var="resource_group_name=rg-house
 ```
 
 The Terraform configuration creates:
+- Resource group
 - Azure Container Registry (ACR)
 - SQL Server with database
 - Container App Environment
@@ -61,11 +65,21 @@ The Terraform configuration creates:
 
 ### 2. Configure GitHub Secrets
 
-After running the deployment, configure these secrets in your GitHub repository:
+Create the GitHub Actions service principal once per environment. It needs subscription scope because Terraform creates the resource group:
+
+```bash
+az ad sp create-for-rbac \
+  --name "sp-househeroes-github-staging" \
+  --role contributor \
+  --scopes "/subscriptions/$(az account show --query id -o tsv)" \
+  --sdk-auth
+```
+
+Then configure these secrets in your GitHub repository:
 
 #### Required Secrets (both environments)
-- `AZURE_CREDENTIALS_STAGING`: Service principal JSON from deployment output
-- `AZURE_CREDENTIALS_PRODUCTION`: Service principal JSON from deployment output
+- `AZURE_CREDENTIALS_STAGING`: JSON output of `az ad sp create-for-rbac` for staging
+- `AZURE_CREDENTIALS_PRODUCTION`: JSON output of `az ad sp create-for-rbac` for production
 - `SQL_SERVER_ADMIN_PASSWORD_STAGING`: SQL Server password for staging
 - `SQL_SERVER_ADMIN_PASSWORD_PRODUCTION`: SQL Server password for production
 
@@ -84,7 +98,8 @@ infra/
 ├── staging.tfvars           # Staging environment variables
 ├── production.tfvars        # Production environment variables
 ├── terraform.tfvars.example # Example variables file
-├── deploy-terraform.sh      # Deployment script
+├── deploy-terraform.sh      # Infrastructure deployment script
+├── deploy-app.sh            # Image build, migration and app deployment script
 └── destroy-terraform.sh     # Destruction script
 ```
 
@@ -105,7 +120,7 @@ infra/
 | `resource_group_name` | Resource group name | - | Yes |
 | `sql_server_admin_login` | SQL Server admin username | - | Yes |
 | `sql_server_admin_password` | SQL Server admin password | `null` (auto-generated) | No |
-| `tags` | Resource tags | `{}` | No |
+| `tags` | Resource tags | `{ Project = "HouseHeroes", ManagedBy = "Terraform" }` | No |
 
 ## CI/CD Pipeline Features
 
@@ -113,8 +128,7 @@ infra/
 
 - **Plan on PR**: Runs `terraform plan` on pull requests for validation
 - **Apply on Push**: Runs `terraform apply` on pushes to main/develop branches
-- **Output Extraction**: Extracts ACR credentials from Terraform outputs
-- **Automated Deployment**: Builds and deploys containers after infrastructure
+- **Automated Deployment**: Runs `deploy-app.sh` after infrastructure, which reads names from Terraform outputs
 
 ### Build Pipeline
 - Builds and tests .NET solution
@@ -126,7 +140,7 @@ infra/
 - **Staging**: Deploys from `develop` branch to staging environment
 - **Production**: Deploys from `main`/`master` branch to production environment
 - Uses Container Apps with auto-scaling
-- Runs database migrations automatically
+- Applies database migrations before switching the API to the new image
 - Infrastructure-as-Code with Terraform
 
 ### Mobile App Builds
@@ -174,46 +188,21 @@ terraform output
 terraform destroy -var-file="staging.tfvars"
 ```
 
-### Build and Push Docker Image
+### Deploy the Application
 ```bash
-# Get ACR details from Terraform
-ACR_LOGIN_SERVER=$(terraform output -raw container_registry_login_server)
-ACR_NAME=$(terraform output -raw container_registry_name)
-
-# Login to ACR
-az acr login --name $ACR_NAME
-
-# Build and push
-docker build -t $ACR_LOGIN_SERVER/househeroes-api:latest .
-docker push $ACR_LOGIN_SERVER/househeroes-api:latest
+./deploy-app.sh staging [image-tag]
 ```
 
-### Update Container App
-```bash
-# Get resource details from Terraform
-RESOURCE_GROUP=$(terraform output -raw resource_group_name)
-ACR_LOGIN_SERVER=$(terraform output -raw container_registry_login_server)
+This builds the `final` (API) and `migration` (EF Core migrations bundle) targets of the `Dockerfile` for `linux/amd64`, pushes both to ACR, runs the migration job and waits for it, then updates the Container App. Resource names come from Terraform outputs.
 
-az containerapp update \
-  --name househeroes-api-staging \
-  --resource-group $RESOURCE_GROUP \
-  --image $ACR_LOGIN_SERVER/househeroes-api:latest
-```
-
-### Run Database Migration
-```bash
-RESOURCE_GROUP=$(terraform output -raw resource_group_name)
-
-az containerapp job start \
-  --name househeroes-migration-job \
-  --resource-group $RESOURCE_GROUP
-```
+Terraform only sets placeholder images on the container app and migration job and ignores image changes afterwards, so `terraform apply` never reverts a deployed image. See [README-Azure-Setup.md](README-Azure-Setup.md#manual-deployment-commands) for the individual commands.
 
 ## State Management
 
 ### Local State (Current)
-- Terraform state is stored locally in `terraform.tfstate`
+- Terraform state is stored locally in `terraform.tfstate`, shared by staging and production
 - Suitable for development and small teams
+- CI starts from empty state on every run
 - **Risk**: State file loss means losing track of infrastructure
 
 ### Remote State (Recommended for Production)
@@ -242,7 +231,7 @@ Access logs via:
 az containerapp logs show --name househeroes-api-staging --resource-group rg-househeroes-staging --follow
 
 # View job logs
-az containerapp job logs show --name househeroes-migration-job --resource-group rg-househeroes-staging
+az containerapp job logs show --name househeroes-migration-job --resource-group rg-househeroes-staging --container migration
 ```
 
 ## Cost Optimization
@@ -250,7 +239,7 @@ az containerapp job logs show --name househeroes-migration-job --resource-group 
 The infrastructure is configured for cost efficiency:
 - **Staging**: Single replica, basic SQL Server tier
 - **Production**: Auto-scaling 2-10 replicas, higher performance tiers
-- Container Apps scale to zero when not in use
+- Container Apps keep at least one replica running (`min_replicas` is 1 in staging, 2 in production)
 - Basic tier Container Registry for development
 - Resource tagging for cost tracking
 
@@ -258,8 +247,8 @@ The infrastructure is configured for cost efficiency:
 
 - Container Registry with admin user enabled for CI/CD
 - SQL Server with encryption required
-- Firewall rules restricting database access
-- Service principal with least privilege access
+- Firewall rule allowing Azure services to reach the database
+- Service principal scoped to the subscription (Terraform creates the resource group)
 - Sensitive values marked as sensitive in Terraform
 - Secrets stored securely in Container Apps
 
@@ -279,7 +268,7 @@ terraform apply -var-file="production.tfvars"
 # This would be done through Azure Portal or CLI
 
 # Redeploy application
-./deploy-terraform.sh production
+./deploy-app.sh production
 ```
 
 ## Troubleshooting
@@ -287,7 +276,7 @@ terraform apply -var-file="production.tfvars"
 ### Common Issues
 1. **Terraform State Lock**: Use `terraform force-unlock <lock-id>` if needed
 2. **Resource Already Exists**: Import existing resources with `terraform import`
-3. **ACR Authentication**: Ensure ACR credentials are correct in outputs
+3. **ACR Authentication**: Ensure the service principal can push to the registry (`az acr login`)
 4. **Database Connection**: Check firewall rules and connection strings
 5. **Container Start Issues**: Review container logs for startup errors
 
@@ -312,16 +301,10 @@ az containerapp show --name househeroes-api-staging --resource-group rg-househer
 az containerapp revision list --name househeroes-api-staging --resource-group rg-househeroes-staging
 ```
 
-## Migration from Bicep
+## Adopting Existing Resources
 
-If migrating from the existing Bicep configuration:
+The resource group is managed by Terraform. If resources already exist in Azure but not in Terraform state, import them before applying:
 
-1. **Export existing resources**: Use `terraform import` for each resource
-2. **Update CI/CD**: Pipeline already updated to use Terraform
-3. **State management**: Consider remote state for production
-4. **Cleanup**: Remove old Bicep files once migration is verified
-
-### Import Example
 ```bash
 # Import resource group
 terraform import azurerm_resource_group.main /subscriptions/xxx/resourceGroups/rg-househeroes-staging

@@ -1,3 +1,18 @@
+output "environment" {
+  description = "The environment these outputs belong to"
+  value       = var.environment
+}
+
+output "container_app_name" {
+  description = "The name of the container app"
+  value       = azurerm_container_app.main.name
+}
+
+output "migration_job_name" {
+  description = "The name of the database migration job"
+  value       = azurerm_container_app_job.migration.name
+}
+
 output "container_app_url" {
   description = "The URL of the container app"
   value       = "https://${azurerm_container_app.main.latest_revision_fqdn}"
@@ -61,10 +76,10 @@ output "application_insights_connection_string" {
 
 output "resource_group_name" {
   description = "The name of the resource group"
-  value       = data.azurerm_resource_group.main.name
+  value       = azurerm_resource_group.main.name
 }
 
 output "resource_group_location" {
   description = "The location of the resource group"
-  value       = data.azurerm_resource_group.main.location
+  value       = azurerm_resource_group.main.location
 }

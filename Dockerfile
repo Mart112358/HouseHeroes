@@ -35,16 +35,16 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 
 ENTRYPOINT ["dotnet", "HouseHeroes.ApiService.dll"]
 
-# Migration stage (includes SDK for EF tools)
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS migration
+# Migration bundle stage (EF Core migrations compiled into a standalone executable)
+FROM build AS migration-build
+RUN dotnet tool install --global dotnet-ef --version 9.0.8
+ENV PATH="$PATH:/root/.dotnet/tools"
+RUN dotnet ef migrations bundle --configuration Release --output /app/efbundle
+
+# Migration stage (applies migrations using the connection string from the environment)
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS migration
 WORKDIR /app
 
-# Copy the published app
-COPY --from=publish /app/publish .
+COPY --from=migration-build /app/efbundle .
 
-# Install Entity Framework CLI
-RUN dotnet tool install --global dotnet-ef --version 9.0.0
-ENV PATH="$PATH:/root/.dotnet/tools"
-
-# Default command for migrations
-ENTRYPOINT ["dotnet", "ef", "database", "update"]
+ENTRYPOINT ["/bin/sh", "-c", "./efbundle --connection \"$ConnectionStrings__househeroes\""]

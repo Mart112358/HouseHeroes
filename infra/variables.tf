@@ -39,7 +39,7 @@ variable "sql_server_admin_password" {
   sensitive   = true
 
   validation {
-    condition = var.sql_server_admin_password == null || (
+    condition = var.sql_server_admin_password == null ? true : (
       length(var.sql_server_admin_password) >= 8 &&
       can(regex("[A-Z]", var.sql_server_admin_password)) &&
       can(regex("[a-z]", var.sql_server_admin_password)) &&
