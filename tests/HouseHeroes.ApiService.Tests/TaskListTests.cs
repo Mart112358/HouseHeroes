@@ -23,6 +23,21 @@ public class TaskListTests(ApiFactory factory) : ApiTestBase(factory)
     }
 
     [Fact]
+    public async System.Threading.Tasks.Task Returns_assignees_with_their_names()
+    {
+        var family = await Data.CreateFamilyAsync();
+        await Data.CreateTaskAsync(family, family.Child);
+
+        var response = await GraphQL.ExecuteAsync(
+            "{ myTasks { id taskAssignments { userId user { id firstName } } } }",
+            asEntraUserId: family.Guardian.EntraUserId);
+
+        var assignment = response.AssertNoErrors().Data.GetProperty("myTasks")[0].GetProperty("taskAssignments")[0];
+        Assert.Equal(family.Child.Id, assignment.GetProperty("userId").GetGuid());
+        Assert.Equal(family.Child.FirstName, assignment.GetProperty("user").GetProperty("firstName").GetString());
+    }
+
+    [Fact]
     public async System.Threading.Tasks.Task Filtering_by_another_familys_member_returns_nothing()
     {
         var mine = await Data.CreateFamilyAsync();

@@ -1,0 +1,35 @@
+query FamilyMembers {
+  myFamily {
+    id
+    name
+  }
+  familyMembers {
+    id
+    firstName
+    lastName
+    email
+    role
+  }
+}
+
+mutation CreateFamilyInvite($role: UserRole!) {
+  createFamilyInvite(role: $role) {
+    id
+    code
+    role
+    expiresAt
+  }
+}
+
+mutation UpdateFamilyMember($input: UpdateFamilyMemberInput!) {
+  updateFamilyMember(input: $input) {
+    id
+    firstName
+    lastName
+    role
+  }
+}
+
+mutation RemoveFamilyMember($userId: UUID!) {
+  removeFamilyMember(userId: $userId)
+}

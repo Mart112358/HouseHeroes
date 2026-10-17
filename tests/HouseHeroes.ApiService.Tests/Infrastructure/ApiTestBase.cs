@@ -5,5 +5,6 @@ public abstract class ApiTestBase(ApiFactory factory)
 {
     protected HttpClient Http { get; } = factory.CreateClient();
     protected GraphQLClient GraphQL => new(Http);
+    protected IServiceProvider Services { get; } = factory.Services;
     protected TestData Data { get; } = new(factory.Services);
 }

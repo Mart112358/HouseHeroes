@@ -74,7 +74,7 @@ Build and launch a minimal, focused version of the family task management app, w
 
 **Design Considerations:**
 
-- Mobile-first UX (Maui)
+- Mobile-first UX (React Native)
 - Simple onboarding flow for non-technical users
 - Gamified task completion system (rewards vs. consequences – to explore)
 
@@ -164,7 +164,7 @@ Build and launch a minimal, focused version of the family task management app, w
 
 ### Frontend (Mobile App)
 
-- **Framework:** Maui
+- **Framework:** React Native (Expo)
 - **Platforms:** iOS and Android (web version planned in a later phase)
 
 ### Backend

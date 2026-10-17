@@ -1,0 +1,20 @@
+query CurrentUser {
+  currentUser {
+    id
+    firstName
+    lastName
+    email
+    role
+    familyId
+  }
+}
+
+mutation RegisterNewUser($input: RegisterNewUserInput!) {
+  registerNewUser(input: $input) {
+    success
+    message
+    user {
+      id
+    }
+  }
+}

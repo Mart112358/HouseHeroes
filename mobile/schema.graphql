@@ -1,0 +1,319 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+type Family {
+  id: UUID!
+  name: String!
+  createdAt: DateTime!
+  members: [User!]!
+  tasks: [Task!]!
+}
+
+type FamilyInvite {
+  id: UUID!
+  familyId: UUID!
+  code: String!
+  role: UserRole!
+  createdById: UUID!
+  createdAt: DateTime!
+  expiresAt: DateTime!
+  usedAt: DateTime
+}
+
+type Mutation {
+  createTask(input: CreateTaskInput!): Task! @authorize @cost(weight: "10")
+  updateTask(input: UpdateTaskInput!): Task! @authorize @cost(weight: "10")
+  assignTask(input: AssignTaskInput!): TaskAssignment! @authorize @cost(weight: "10")
+  unassignTask(input: AssignTaskInput!): Boolean! @authorize @cost(weight: "10")
+  completeTask(taskId: UUID!): Task! @authorize @cost(weight: "10")
+  reopenTask(taskId: UUID!): Task! @authorize @cost(weight: "10")
+  deleteTask(taskId: UUID!): Boolean! @authorize @cost(weight: "10")
+  registerNewUser(input: RegisterNewUserInput!): RegisterNewUserResult! @authorize @cost(weight: "10")
+  createFamilyInvite(role: UserRole!): FamilyInvite! @authorize @cost(weight: "10")
+  updateFamilyMember(input: UpdateFamilyMemberInput!): User! @authorize @cost(weight: "10")
+  removeFamilyMember(userId: UUID!): Boolean! @authorize @cost(weight: "10")
+}
+
+type Query {
+  myFamily: Family @authorize @cost(weight: "10")
+  familyMembers: [User!]! @authorize @cost(weight: "10")
+  myTasks(where: TaskFilterInput @cost(weight: "10") order: [TaskSortInput!] @cost(weight: "10")): [Task!]! @authorize @cost(weight: "10")
+  currentUser: User @authorize @cost(weight: "10")
+  taskById(id: UUID!): Task @authorize @cost(weight: "10")
+}
+
+type RegisterNewUserResult {
+  success: Boolean!
+  message: String!
+  user: User
+  family: Family
+}
+
+type Task {
+  id: UUID!
+  familyId: UUID!
+  title: String!
+  description: String
+  createdById: UUID!
+  dueDate: DateTime
+  createdAt: DateTime!
+  isCompleted: Boolean!
+  completedAt: DateTime
+  family: Family!
+  createdBy: User!
+  taskAssignments: [TaskAssignment!]!
+}
+
+type TaskAssignment {
+  taskId: UUID!
+  userId: UUID!
+  task: Task!
+  user: User!
+}
+
+type User {
+  id: UUID!
+  entraUserId: String!
+  email: String!
+  firstName: String!
+  lastName: String!
+  role: UserRole!
+  familyId: UUID!
+  createdAt: DateTime!
+  lastLoginAt: DateTime
+  family: Family!
+  createdTasks: [Task!]!
+  taskAssignments: [TaskAssignment!]!
+}
+
+input AssignTaskInput {
+  taskId: UUID!
+  userId: UUID!
+}
+
+input BooleanOperationFilterInput {
+  eq: Boolean @cost(weight: "10")
+  neq: Boolean @cost(weight: "10")
+}
+
+input CreateTaskInput {
+  title: String!
+  description: String
+  dueDate: DateTime
+  assigneeIds: [UUID!]
+}
+
+input DateTimeOperationFilterInput {
+  eq: DateTime @cost(weight: "10")
+  neq: DateTime @cost(weight: "10")
+  in: [DateTime] @cost(weight: "10")
+  nin: [DateTime] @cost(weight: "10")
+  gt: DateTime @cost(weight: "10")
+  ngt: DateTime @cost(weight: "10")
+  gte: DateTime @cost(weight: "10")
+  ngte: DateTime @cost(weight: "10")
+  lt: DateTime @cost(weight: "10")
+  nlt: DateTime @cost(weight: "10")
+  lte: DateTime @cost(weight: "10")
+  nlte: DateTime @cost(weight: "10")
+}
+
+input FamilyFilterInput {
+  and: [FamilyFilterInput!]
+  or: [FamilyFilterInput!]
+  id: UuidOperationFilterInput
+  name: StringOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  members: ListFilterInputTypeOfUserFilterInput
+  tasks: ListFilterInputTypeOfTaskFilterInput
+}
+
+input FamilySortInput {
+  id: SortEnumType @cost(weight: "10")
+  name: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+}
+
+input ListFilterInputTypeOfTaskAssignmentFilterInput {
+  all: TaskAssignmentFilterInput @cost(weight: "10")
+  none: TaskAssignmentFilterInput @cost(weight: "10")
+  some: TaskAssignmentFilterInput @cost(weight: "10")
+  any: Boolean @cost(weight: "10")
+}
+
+input ListFilterInputTypeOfTaskFilterInput {
+  all: TaskFilterInput @cost(weight: "10")
+  none: TaskFilterInput @cost(weight: "10")
+  some: TaskFilterInput @cost(weight: "10")
+  any: Boolean @cost(weight: "10")
+}
+
+input ListFilterInputTypeOfUserFilterInput {
+  all: UserFilterInput @cost(weight: "10")
+  none: UserFilterInput @cost(weight: "10")
+  some: UserFilterInput @cost(weight: "10")
+  any: Boolean @cost(weight: "10")
+}
+
+input RegisterNewUserInput {
+  createNewFamily: Boolean!
+  familyName: String
+  inviteCode: String
+}
+
+input StringOperationFilterInput {
+  and: [StringOperationFilterInput!]
+  or: [StringOperationFilterInput!]
+  eq: String @cost(weight: "10")
+  neq: String @cost(weight: "10")
+  contains: String @cost(weight: "20")
+  ncontains: String @cost(weight: "20")
+  in: [String] @cost(weight: "10")
+  nin: [String] @cost(weight: "10")
+  startsWith: String @cost(weight: "20")
+  nstartsWith: String @cost(weight: "20")
+  endsWith: String @cost(weight: "20")
+  nendsWith: String @cost(weight: "20")
+}
+
+input TaskAssignmentFilterInput {
+  and: [TaskAssignmentFilterInput!]
+  or: [TaskAssignmentFilterInput!]
+  taskId: UuidOperationFilterInput
+  userId: UuidOperationFilterInput
+  task: TaskFilterInput
+  user: UserFilterInput
+}
+
+input TaskFilterInput {
+  and: [TaskFilterInput!]
+  or: [TaskFilterInput!]
+  id: UuidOperationFilterInput
+  familyId: UuidOperationFilterInput
+  title: StringOperationFilterInput
+  description: StringOperationFilterInput
+  createdById: UuidOperationFilterInput
+  dueDate: DateTimeOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  isCompleted: BooleanOperationFilterInput
+  completedAt: DateTimeOperationFilterInput
+  family: FamilyFilterInput
+  createdBy: UserFilterInput
+  taskAssignments: ListFilterInputTypeOfTaskAssignmentFilterInput
+}
+
+input TaskSortInput {
+  id: SortEnumType @cost(weight: "10")
+  familyId: SortEnumType @cost(weight: "10")
+  title: SortEnumType @cost(weight: "10")
+  description: SortEnumType @cost(weight: "10")
+  createdById: SortEnumType @cost(weight: "10")
+  dueDate: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  isCompleted: SortEnumType @cost(weight: "10")
+  completedAt: SortEnumType @cost(weight: "10")
+  family: FamilySortInput @cost(weight: "10")
+  createdBy: UserSortInput @cost(weight: "10")
+}
+
+input UpdateFamilyMemberInput {
+  userId: UUID!
+  firstName: String!
+  lastName: String!
+  role: UserRole!
+}
+
+input UpdateTaskInput {
+  taskId: UUID!
+  title: String!
+  description: String
+  dueDate: DateTime
+}
+
+input UserFilterInput {
+  and: [UserFilterInput!]
+  or: [UserFilterInput!]
+  id: UuidOperationFilterInput
+  entraUserId: StringOperationFilterInput
+  email: StringOperationFilterInput
+  firstName: StringOperationFilterInput
+  lastName: StringOperationFilterInput
+  role: UserRoleOperationFilterInput
+  familyId: UuidOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  lastLoginAt: DateTimeOperationFilterInput
+  family: FamilyFilterInput
+  createdTasks: ListFilterInputTypeOfTaskFilterInput
+  taskAssignments: ListFilterInputTypeOfTaskAssignmentFilterInput
+}
+
+input UserRoleOperationFilterInput {
+  eq: UserRole @cost(weight: "10")
+  neq: UserRole @cost(weight: "10")
+  in: [UserRole!] @cost(weight: "10")
+  nin: [UserRole!] @cost(weight: "10")
+}
+
+input UserSortInput {
+  id: SortEnumType @cost(weight: "10")
+  entraUserId: SortEnumType @cost(weight: "10")
+  email: SortEnumType @cost(weight: "10")
+  firstName: SortEnumType @cost(weight: "10")
+  lastName: SortEnumType @cost(weight: "10")
+  role: SortEnumType @cost(weight: "10")
+  familyId: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  lastLoginAt: SortEnumType @cost(weight: "10")
+  family: FamilySortInput @cost(weight: "10")
+}
+
+input UuidOperationFilterInput {
+  eq: UUID @cost(weight: "10")
+  neq: UUID @cost(weight: "10")
+  in: [UUID] @cost(weight: "10")
+  nin: [UUID] @cost(weight: "10")
+  gt: UUID @cost(weight: "10")
+  ngt: UUID @cost(weight: "10")
+  gte: UUID @cost(weight: "10")
+  ngte: UUID @cost(weight: "10")
+  lt: UUID @cost(weight: "10")
+  nlt: UUID @cost(weight: "10")
+  lte: UUID @cost(weight: "10")
+  nlte: UUID @cost(weight: "10")
+}
+
+"Defines when a policy shall be executed."
+enum ApplyPolicy {
+  "Before the resolver was executed."
+  BEFORE_RESOLVER
+  "After the resolver was executed."
+  AFTER_RESOLVER
+  "The policy is applied in the validation step before the execution."
+  VALIDATION
+}
+
+enum SortEnumType {
+  ASC
+  DESC
+}
+
+enum UserRole {
+  GUARDIAN
+  CHILD
+}
+
+"The authorize directive."
+directive @authorize("The name of the authorization policy that determines access to the annotated resource." policy: String "Roles that are allowed to access the annotated resource." roles: [String!] "Defines when when the authorize directive shall be applied.By default the authorize directives are applied during the validation phase." apply: ApplyPolicy! = BEFORE_RESOLVER) repeatable on OBJECT | FIELD_DEFINITION
+
+"The purpose of the `cost` directive is to define a `weight` for GraphQL types, fields, and arguments. Static analysis can use these weights when calculating the overall cost of a query or response."
+directive @cost("The `weight` argument defines what value to add to the overall cost for every appearance, or possible appearance, of a type, field, argument, etc." weight: String!) on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | INPUT_FIELD_DEFINITION
+
+"The `@specifiedBy` directive is used within the type system definition language to provide a URL for specifying the behavior of custom scalar definitions."
+directive @specifiedBy("The specifiedBy URL points to a human-readable specification. This field will only read a result for scalar types." url: String!) on SCALAR
+
+"The `DateTime` scalar represents an ISO-8601 compliant date time type."
+scalar DateTime @specifiedBy(url: "https:\/\/www.graphql-scalars.com\/date-time")
+
+scalar UUID @specifiedBy(url: "https:\/\/tools.ietf.org\/html\/rfc4122")

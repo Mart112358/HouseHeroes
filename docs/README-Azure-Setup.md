@@ -72,7 +72,7 @@ Then configure these secrets in your GitHub repository:
 
 ### Build Pipeline
 - Builds and tests .NET solution
-- Creates multi-platform MAUI apps (Android, iOS, macOS, Windows)
+- Checks the React Native mobile app (generated GraphQL client up to date, typecheck, lint, Jest tests)
 - Runs security scans (CodeQL, vulnerability checks)
 - Generates code coverage reports
 
@@ -83,17 +83,15 @@ Then configure these secrets in your GitHub repository:
 - Runs `infra/deploy-app.sh`, which applies database migrations before switching the API to the new image
 
 ### Mobile App Builds
-- Android builds on all pushes/PRs
-- iOS/macOS builds only on main branch pushes (due to runner costs)
-- Windows builds only on main branch pushes
-- Artifacts uploaded for distribution
+- The Expo app in `mobile/` is checked by CI (pushes to main/master/develop and PRs), but it doesn't produce installable builds
+- Store and test builds (TestFlight, Google Play internal testing) will come from EAS Build (`npx eas-cli build`); not set up yet
 
 ## Architecture Overview
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   MAUI Mobile   │────│   Container App  │────│   SQL Server    │
-│      Apps       │    │   (API Service)  │    │                 │
+│  React Native   │────│   Container App  │────│   SQL Server    │
+│  app (Expo)     │    │   (API Service)  │    │                 │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
                               │
                               ▼

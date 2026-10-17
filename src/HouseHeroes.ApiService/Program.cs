@@ -25,6 +25,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            // Entra puts either the client ID or the api:// URI in aud, depending on token version
+            ValidAudiences = [builder.Configuration["EntraId:ClientId"], $"api://{builder.Configuration["EntraId:ClientId"]}"],
             ClockSkew = TimeSpan.FromMinutes(5)
         };
     });

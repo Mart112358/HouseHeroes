@@ -1,0 +1,74 @@
+fragment TaskFields on Task {
+  id
+  title
+  description
+  dueDate
+  isCompleted
+  completedAt
+  taskAssignments {
+    taskId
+    userId
+    user {
+      id
+      firstName
+    }
+  }
+}
+
+query MyTasks {
+  myTasks {
+    ...TaskFields
+  }
+}
+
+query TaskById($id: UUID!) {
+  taskById(id: $id) {
+    ...TaskFields
+  }
+}
+
+mutation CreateTask($input: CreateTaskInput!) {
+  createTask(input: $input) {
+    id
+  }
+}
+
+mutation UpdateTask($input: UpdateTaskInput!) {
+  updateTask(input: $input) {
+    id
+    title
+    description
+    dueDate
+  }
+}
+
+mutation AssignTask($input: AssignTaskInput!) {
+  assignTask(input: $input) {
+    taskId
+    userId
+  }
+}
+
+mutation UnassignTask($input: AssignTaskInput!) {
+  unassignTask(input: $input)
+}
+
+mutation CompleteTask($taskId: UUID!) {
+  completeTask(taskId: $taskId) {
+    id
+    isCompleted
+    completedAt
+  }
+}
+
+mutation ReopenTask($taskId: UUID!) {
+  reopenTask(taskId: $taskId) {
+    id
+    isCompleted
+    completedAt
+  }
+}
+
+mutation DeleteTask($taskId: UUID!) {
+  deleteTask(taskId: $taskId)
+}
