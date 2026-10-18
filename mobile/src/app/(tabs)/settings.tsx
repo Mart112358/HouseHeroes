@@ -1,12 +1,14 @@
-import { useQuery } from '@apollo/client/react';
+import { useMutation, useQuery } from '@apollo/client/react';
 import Constants from 'expo-constants';
-import { Linking, StyleSheet, Switch, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Linking, StyleSheet, Switch, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-provider';
 import { useReminders } from '@/features/reminders-provider';
 import { roleLabels } from '@/features/roles';
 import { useViewer } from '@/features/use-viewer';
-import { FamilyMembersDocument } from '@/graphql/generated/graphql';
+import { config } from '@/config';
+import { DeleteMyAccountDocument, FamilyMembersDocument } from '@/graphql/generated/graphql';
 import { Body, Button, Card, Heading, Message, Screen } from '@/ui/components';
 
 export default function SettingsScreen() {
@@ -14,6 +16,31 @@ export default function SettingsScreen() {
   const viewer = useViewer();
   const { data } = useQuery(FamilyMembersDocument);
   const reminders = useReminders();
+  const [deleteMyAccount, deleting] = useMutation(DeleteMyAccountDocument);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const confirmDelete = () =>
+    Alert.alert(
+      'Delete your account?',
+      'Your HouseHeroes account and your task assignments are deleted. Tasks you created stay with your family. This can\'t be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleteError(null);
+            try {
+              await deleteMyAccount();
+              await signOut();
+            } catch (e) {
+              // e.g. "Make another member a parent before deleting your account."
+              setDeleteError(e instanceof Error ? e.message : "Couldn't delete your account. Try again.");
+            }
+          },
+        },
+      ]
+    );
 
   return (
     <Screen title="Settings">
@@ -40,7 +67,10 @@ export default function SettingsScreen() {
           </>
         ) : null}
       </Card>
+      {config.feedbackUrl ? <Button label="Send feedback" variant="secondary" onPress={() => Linking.openURL(config.feedbackUrl!)} /> : null}
       <Button label="Sign out" variant="secondary" onPress={signOut} />
+      <Button label="Delete account" variant="danger" busy={deleting.loading} onPress={confirmDelete} />
+      {deleteError ? <Message tone="danger">{deleteError}</Message> : null}
       <Body muted>Version {Constants.expoConfig?.version}</Body>
     </Screen>
   );

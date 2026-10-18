@@ -18,3 +18,7 @@ mutation RegisterNewUser($input: RegisterNewUserInput!) {
     }
   }
 }
+
+mutation DeleteMyAccount {
+  deleteMyAccount
+}

@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HouseHeroes.ApiService.GraphQL.Mutations;
 
-// Invites and member management. Guardians only.
+// Invites, member management, and deleting your own account.
 [ExtendObjectType(OperationTypeNames.Mutation)]
 public class FamilyMutations
 {
@@ -89,17 +89,61 @@ public class FamilyMutations
         if (member == null)
             return false;
 
-        // Keep what the member created by handing it to the guardian removing them
+        await DeleteMemberAsync(context, member, inheritorId: user.Id);
+
+        return true;
+    }
+
+    // Deletes the caller's account (required by the app stores). The last member takes
+    // the family with them; the last guardian of a family with other members can't leave.
+    [Authorize]
+    public async System.Threading.Tasks.Task<bool> DeleteMyAccount(
+        AppDbContext context,
+        [Service] IUserService userService,
+        ClaimsPrincipal claimsPrincipal)
+    {
+        var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
+
+        var otherMembers = await context.Users.Where(u => u.FamilyId == user.FamilyId && u.Id != user.Id).ToListAsync();
+        if (otherMembers.Count == 0)
+        {
+            await DeleteFamilyAsync(context, user);
+            return true;
+        }
+
+        // Families always keep a guardian, so a child leaving always finds one
+        var inheritor = otherMembers.FirstOrDefault(m => m.Role == UserRole.Guardian);
+        if (inheritor == null)
+            throw GraphQLErrors.Forbidden("Make another member a parent before deleting your account.");
+
+        await DeleteMemberAsync(context, user, inheritor.Id);
+
+        return true;
+    }
+
+    // Deletes a member, handing the tasks and invites they created to another member
+    private static async System.Threading.Tasks.Task DeleteMemberAsync(AppDbContext context, User member, Guid inheritorId)
+    {
         foreach (var task in await context.Tasks.Where(t => t.CreatedById == member.Id).ToListAsync())
-            task.CreatedById = user.Id;
+            task.CreatedById = inheritorId;
         foreach (var invite in await context.FamilyInvites.Where(i => i.CreatedById == member.Id).ToListAsync())
-            invite.CreatedById = user.Id;
+            invite.CreatedById = inheritorId;
 
         context.TaskAssignments.RemoveRange(await context.TaskAssignments.Where(a => a.UserId == member.Id).ToListAsync());
         context.Users.Remove(member);
         await context.SaveChangesAsync();
+    }
 
-        return true;
+    // Deletes a family whose only member is `lastMember`, with everything in it. Deletes are explicit
+    // (tasks and invites reference the member with NO ACTION keys), in one save so EF orders them.
+    private static async System.Threading.Tasks.Task DeleteFamilyAsync(AppDbContext context, User lastMember)
+    {
+        context.TaskAssignments.RemoveRange(await context.TaskAssignments.Where(a => a.Task.FamilyId == lastMember.FamilyId).ToListAsync());
+        context.Tasks.RemoveRange(await context.Tasks.Where(t => t.FamilyId == lastMember.FamilyId).ToListAsync());
+        context.FamilyInvites.RemoveRange(await context.FamilyInvites.Where(i => i.FamilyId == lastMember.FamilyId).ToListAsync());
+        context.Users.Remove(lastMember);
+        context.Families.Remove(await context.Families.SingleAsync(f => f.Id == lastMember.FamilyId));
+        await context.SaveChangesAsync();
     }
 }
 

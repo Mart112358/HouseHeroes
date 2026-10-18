@@ -34,6 +34,7 @@ type Mutation {
   createFamilyInvite(role: UserRole!): FamilyInvite! @authorize @cost(weight: "10")
   updateFamilyMember(input: UpdateFamilyMemberInput!): User! @authorize @cost(weight: "10")
   removeFamilyMember(userId: UUID!): Boolean! @authorize @cost(weight: "10")
+  deleteMyAccount: Boolean! @authorize @cost(weight: "10")
 }
 
 type Query {

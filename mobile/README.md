@@ -25,6 +25,29 @@ UPDATE_SCHEMA=1 dotnet test tests/HouseHeroes.ApiService.Tests --filter SchemaTe
 npm run codegen
 ```
 
+## Release builds (EAS)
+
+`eas.json` has three build profiles. `preview` makes internal-distribution builds for testers against staging, `production` makes store builds. Each profile reads its variables from the matching EAS environment. A release build refuses to start without `EXPO_PUBLIC_GRAPHQL_URL`.
+
+One-time setup (needs an Expo account):
+
+```bash
+npx eas-cli@latest login
+npx eas-cli@latest init        # links the project and adds its ID to app.json
+npx eas-cli@latest env:set --name EXPO_PUBLIC_GRAPHQL_URL --value https://<staging api host>/graphql --environment preview --visibility plaintext
+npx eas-cli@latest env:set --name EXPO_PUBLIC_GRAPHQL_URL --value https://<production api host>/graphql --environment production --visibility plaintext
+# optional: a feedback form or mailto: link shown in Settings
+npx eas-cli@latest env:set --name EXPO_PUBLIC_FEEDBACK_URL --value <url> --environment preview --visibility plaintext
+```
+
+The API host is the Container App URL (`terraform output container_app_url` in `infra/`).
+
+```bash
+npx eas-cli@latest build --profile preview --platform all      # builds for testers
+npx eas-cli@latest build --profile production --platform all   # store builds
+npx eas-cli@latest submit --profile production --platform ios  # TestFlight / App Store Connect
+```
+
 ## Checks
 
 ```bash

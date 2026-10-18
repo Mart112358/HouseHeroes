@@ -75,10 +75,14 @@ PRD flow 4 says parents "receive a notification or can view updates". The Guardi
 ## Milestone 5: Beta and store launch
 
 - [ ] Deploy staging (bootstrap remote state, then `deploy-terraform.sh` and `deploy-app.sh`); set `EXPO_PUBLIC_GRAPHQL_URL` per EAS build profile (the app defaults to `localhost`)
-- [ ] In-app account deletion (required by the App Store and Google Play), privacy policy and terms
+- [x] In-app account deletion (`deleteMyAccount`, Settings → Delete account). The last member deletes the family; the last parent of a family with other members must hand over first
+- [ ] Also delete the user from the External ID tenant when they delete their account (needs a Microsoft Graph app permission and secret on the API)
+- [ ] Privacy policy and terms (URLs for the store listings)
 - [ ] Crash and error reporting (Application Insights is already deployed for the API)
-- [ ] EAS Build and Submit set up; TestFlight and Google Play internal testing with a handful of real families
-- [ ] Feedback channel in the app (a link or form is enough)
+- [x] `eas.json` build profiles (development, preview, production), each reading `EXPO_PUBLIC_GRAPHQL_URL` from its EAS environment; release builds refuse to start without it
+- [ ] Expo account: `eas init`, set the URLs, first preview build; TestFlight and Google Play internal testing with a handful of real families
+- [x] Feedback link in Settings, shown when `EXPO_PUBLIC_FEEDBACK_URL` is set
+- [ ] Choose the feedback form or address and set it in EAS
 - [ ] Production deploy, store listings, submission
 
 **Done when:** the app is live in both stores and early-adopter families are using it.
