@@ -10,7 +10,7 @@ import {
   MyTasksDocument,
   RemoveFamilyMemberDocument,
   UpdateFamilyMemberDocument,
-  type UserRole,
+  type FamilyMembersQuery,
 } from '@/graphql/generated/graphql';
 import { Body, Button, Heading, Loading, Message, Screen, Segmented, TextField } from '@/ui/components';
 
@@ -36,7 +36,7 @@ function MemberForm({
   member,
   isViewer,
 }: {
-  member: { id: string; firstName: string; lastName: string; email: string; role: UserRole };
+  member: FamilyMembersQuery['familyMembers'][number];
   isViewer: boolean;
 }) {
   const [firstName, setFirstName] = useState(member.firstName);
@@ -55,7 +55,7 @@ function MemberForm({
       await update({ variables: { input: { userId: member.id, firstName: firstName.trim(), lastName: lastName.trim(), role } } });
       router.back();
     } catch (e) {
-      // e.g. "A family needs at least one guardian."
+      // e.g. "A family needs at least one parent."
       setError(e instanceof Error ? e.message : "Couldn't save. Try again.");
     }
   };

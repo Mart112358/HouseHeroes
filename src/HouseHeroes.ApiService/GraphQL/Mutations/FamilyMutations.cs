@@ -58,15 +58,20 @@ public class FamilyMutations
         if (member == null)
             throw GraphQLErrors.NotFound("Family member not found.");
 
-        if (member.Role == UserRole.Guardian && input.Role != UserRole.Guardian &&
-            !await context.Users.AnyAsync(u => u.FamilyId == user.FamilyId && u.Role == UserRole.Guardian && u.Id != member.Id))
-            throw GraphQLErrors.Forbidden("A family needs at least one guardian.");
+        if (member.Role != input.Role)
+        {
+            if (member.Role == UserRole.Guardian &&
+                !await context.Users.AnyAsync(u => u.FamilyId == user.FamilyId && u.Role == UserRole.Guardian && u.Id != member.Id))
+                throw GraphQLErrors.Forbidden("A family needs at least one parent.");
+
+            BeginMembershipChange(user);
+        }
 
         member.FirstName = input.FirstName;
         member.LastName = input.LastName;
         member.Role = input.Role;
 
-        await context.SaveChangesAsync();
+        await SaveMembershipChangeAsync(context);
 
         return member;
     }
@@ -89,6 +94,7 @@ public class FamilyMutations
         if (member == null)
             return false;
 
+        BeginMembershipChange(user);
         await DeleteMemberAsync(context, member, inheritorId: user.Id);
 
         return true;
@@ -103,6 +109,7 @@ public class FamilyMutations
         ClaimsPrincipal claimsPrincipal)
     {
         var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
+        BeginMembershipChange(user);
 
         var otherMembers = await context.Users.Where(u => u.FamilyId == user.FamilyId && u.Id != user.Id).ToListAsync();
         if (otherMembers.Count == 0)
@@ -131,7 +138,7 @@ public class FamilyMutations
 
         context.TaskAssignments.RemoveRange(await context.TaskAssignments.Where(a => a.UserId == member.Id).ToListAsync());
         context.Users.Remove(member);
-        await context.SaveChangesAsync();
+        await SaveMembershipChangeAsync(context);
     }
 
     // Deletes a family whose only member is `lastMember`, with everything in it. Deletes are explicit
@@ -142,8 +149,24 @@ public class FamilyMutations
         context.Tasks.RemoveRange(await context.Tasks.Where(t => t.FamilyId == lastMember.FamilyId).ToListAsync());
         context.FamilyInvites.RemoveRange(await context.FamilyInvites.Where(i => i.FamilyId == lastMember.FamilyId).ToListAsync());
         context.Users.Remove(lastMember);
-        context.Families.Remove(await context.Families.SingleAsync(f => f.Id == lastMember.FamilyId));
-        await context.SaveChangesAsync();
+        context.Families.Remove(lastMember.Family);
+        await SaveMembershipChangeAsync(context);
+    }
+
+    // Call before checking who is in the family. The caller's family was loaded with them, so
+    // bumping its version makes the save fail if anyone changed the members since that read.
+    private static void BeginMembershipChange(User caller) => caller.Family.MembershipVersion++;
+
+    private static async System.Threading.Tasks.Task SaveMembershipChangeAsync(AppDbContext context)
+    {
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw GraphQLErrors.Conflict();
+        }
     }
 }
 

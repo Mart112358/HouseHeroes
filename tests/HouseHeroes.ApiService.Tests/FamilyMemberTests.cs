@@ -74,6 +74,42 @@ public class FamilyMemberTests(ApiFactory factory) : ApiTestBase(factory)
         Assert.Equal("CHILD", response.AssertNoErrors().Data.GetProperty("updateFamilyMember").GetProperty("role").GetString());
     }
 
+    // Each request alone is allowed; together they would leave no guardian. Races are timing
+    // dependent, so this repeats them: without the membership version check it fails quickly.
+    [Fact]
+    public async System.Threading.Tasks.Task Guardians_demoting_each_other_at_once_leave_a_guardian()
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var family = await Data.CreateFamilyAsync();
+            var coParent = await Data.AddMemberAsync(family, UserRole.Guardian);
+
+            var responses = await System.Threading.Tasks.Task.WhenAll(
+                GraphQL.ExecuteAsync(UpdateMember, new { userId = coParent.Id, role = "CHILD" }, family.Guardian.EntraUserId),
+                GraphQL.ExecuteAsync(UpdateMember, new { userId = family.Guardian.Id, role = "CHILD" }, coParent.EntraUserId));
+
+            Assert.All(responses.SelectMany(r => r.ErrorCodes), code => Assert.Contains(code, new[] { "FORBIDDEN", "CONFLICT" }));
+            Assert.True(await Data.QueryAsync(db => db.Users.AnyAsync(u => u.FamilyId == family.Family.Id && u.Role == UserRole.Guardian)));
+        }
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task Guardians_deleting_their_accounts_at_once_leave_a_guardian()
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var family = await Data.CreateFamilyAsync();
+            var coParent = await Data.AddMemberAsync(family, UserRole.Guardian);
+
+            var responses = await System.Threading.Tasks.Task.WhenAll(
+                GraphQL.ExecuteAsync("mutation { deleteMyAccount }", asEntraUserId: family.Guardian.EntraUserId),
+                GraphQL.ExecuteAsync("mutation { deleteMyAccount }", asEntraUserId: coParent.EntraUserId));
+
+            Assert.All(responses.SelectMany(r => r.ErrorCodes), code => Assert.Contains(code, new[] { "FORBIDDEN", "CONFLICT" }));
+            Assert.True(await Data.QueryAsync(db => db.Users.AnyAsync(u => u.FamilyId == family.Family.Id && u.Role == UserRole.Guardian)));
+        }
+    }
+
     [Fact]
     public async System.Threading.Tasks.Task Guardian_removes_a_member_and_keeps_the_tasks_they_created()
     {

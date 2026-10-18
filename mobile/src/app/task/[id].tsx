@@ -4,14 +4,7 @@ import { useState } from 'react';
 import { Alert } from 'react-native';
 
 import { TaskForm, type TaskFormValues } from '@/features/task-form';
-import {
-  AssignTaskDocument,
-  DeleteTaskDocument,
-  MyTasksDocument,
-  TaskByIdDocument,
-  UnassignTaskDocument,
-  UpdateTaskDocument,
-} from '@/graphql/generated/graphql';
+import { DeleteTaskDocument, MyTasksDocument, TaskByIdDocument, UpdateTaskDocument } from '@/graphql/generated/graphql';
 import { Body, Button, Loading, Screen } from '@/ui/components';
 
 export default function EditTaskScreen() {
@@ -19,8 +12,6 @@ export default function EditTaskScreen() {
   const client = useApolloClient();
   const { data, loading } = useQuery(TaskByIdDocument, { variables: { id } });
   const [updateTask] = useMutation(UpdateTaskDocument);
-  const [assignTask] = useMutation(AssignTaskDocument);
-  const [unassignTask] = useMutation(UnassignTaskDocument);
   const [deleteTask, deleting] = useMutation(DeleteTaskDocument);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,21 +26,15 @@ export default function EditTaskScreen() {
     );
   }
 
-  const currentAssignees = task.taskAssignments.map((assignment) => assignment.userId);
-
   const save = async ({ title, description, dueDate, assigneeIds }: TaskFormValues) => {
     setSaving(true);
     setError(null);
     try {
       await updateTask({
-        variables: { input: { taskId: task.id, title, description: description.trim() || null, dueDate: dueDate?.toISOString() ?? null } },
+        variables: {
+          input: { taskId: task.id, title, description: description.trim() || null, dueDate: dueDate?.toISOString() ?? null, assigneeIds },
+        },
       });
-      const added = assigneeIds.filter((userId) => !currentAssignees.includes(userId));
-      const removed = currentAssignees.filter((userId) => !assigneeIds.includes(userId));
-      await Promise.all([
-        ...added.map((userId) => assignTask({ variables: { input: { taskId: task.id, userId } } })),
-        ...removed.map((userId) => unassignTask({ variables: { input: { taskId: task.id, userId } } })),
-      ]);
       await client.refetchQueries({ include: [MyTasksDocument] });
       router.back();
     } catch {
@@ -82,7 +67,7 @@ export default function EditTaskScreen() {
         title: task.title,
         description: task.description ?? '',
         dueDate: task.dueDate ? new Date(task.dueDate) : null,
-        assigneeIds: currentAssignees,
+        assigneeIds: task.taskAssignments.map((assignment) => assignment.userId),
       }}
       submitLabel="Save changes"
       submitting={saving}

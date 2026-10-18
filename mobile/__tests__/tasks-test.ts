@@ -1,13 +1,14 @@
-import { canComplete, dueLabel, visibleTasks } from '@/features/tasks';
+import { canComplete, dueLabel, groupByDueDate, visibleTasks } from '@/features/tasks';
 import { child, guardian, task } from '../test-support/factories';
 
 describe('visibleTasks', () => {
-  it('shows only the viewer\'s tasks in "mine" and everything in "family"', () => {
-    const mine = task({ assignedTo: [child.id] });
-    const theirs = task({ assignedTo: [guardian.id] });
+  it("shows one member's tasks, or everyone's", () => {
+    const childs = task({ assignedTo: [child.id] });
+    const parents = task({ assignedTo: [guardian.id] });
 
-    expect(visibleTasks([mine, theirs], { scope: 'mine', status: 'open', viewer: child })).toEqual([mine]);
-    expect(visibleTasks([mine, theirs], { scope: 'family', status: 'open', viewer: child })).toHaveLength(2);
+    expect(visibleTasks([childs, parents], { owner: child.id, status: 'open' })).toEqual([childs]);
+    expect(visibleTasks([childs, parents], { owner: guardian.id, status: 'open' })).toEqual([parents]);
+    expect(visibleTasks([childs, parents], { owner: 'everyone', status: 'open' })).toHaveLength(2);
   });
 
   it('orders open tasks by due date, undated last, then by title', () => {
@@ -16,7 +17,7 @@ describe('visibleTasks', () => {
     const sooner = task({ title: 'Sooner', dueDate: '2026-11-01T12:00:00Z' });
     const done = task({ isCompleted: true, completedAt: '2026-10-01T12:00:00Z' });
 
-    const result = visibleTasks([undated, later, done, sooner], { scope: 'family', status: 'open', viewer: guardian });
+    const result = visibleTasks([undated, later, done, sooner], { owner: 'everyone', status: 'open' });
 
     expect(result.map((t) => t.title)).toEqual(['Sooner', 'Later', 'A undated']);
   });
@@ -26,7 +27,35 @@ describe('visibleTasks', () => {
     const newer = task({ isCompleted: true, completedAt: '2026-10-03T12:00:00Z' });
     const open = task();
 
-    expect(visibleTasks([older, open, newer], { scope: 'family', status: 'done', viewer: guardian })).toEqual([newer, older]);
+    expect(visibleTasks([older, open, newer], { owner: 'everyone', status: 'done' })).toEqual([newer, older]);
+  });
+});
+
+describe('groupByDueDate', () => {
+  const now = new Date(2026, 9, 17, 10, 0); // Saturday Oct 17, 10:00 local
+  const due = (day: number) => new Date(2026, 9, day, 23, 59).toISOString();
+
+  it('groups tasks by day and week, keeping their order', () => {
+    const tasks = [
+      task({ title: 'Late', dueDate: new Date(2026, 9, 16, 18, 0).toISOString() }),
+      task({ title: 'Today', dueDate: due(17) }),
+      task({ title: 'Tomorrow', dueDate: due(18) }),
+      task({ title: 'Wednesday', dueDate: due(21) }),
+      task({ title: 'Friday', dueDate: due(23) }),
+      task({ title: 'Next month', dueDate: due(40) }),
+      task({ title: 'Someday' }),
+    ];
+
+    const sections = groupByDueDate(tasks, now).map((s) => [s.title, s.data.map((t) => t.title)]);
+
+    expect(sections).toEqual([
+      ['Overdue', ['Late']],
+      ['Today', ['Today']],
+      ['Tomorrow', ['Tomorrow']],
+      ['This week', ['Wednesday', 'Friday']],
+      ['Later', ['Next month']],
+      ['No due date', ['Someday']],
+    ]);
   });
 });
 

@@ -70,8 +70,18 @@ MIGRATION_EXECUTION_NAME=$(az containerapp job start \
     --query "name" -o tsv)
 echo "Migration job execution: $MIGRATION_EXECUTION_NAME"
 
-echo "Waiting for migration job to complete..."
+# Each attempt is capped by the job's replica timeout (30 min); this also bounds retries and stuck statuses
+MIGRATION_TIMEOUT_SECONDS=${MIGRATION_TIMEOUT_SECONDS:-2700}
+MIGRATION_DEADLINE=$((SECONDS + MIGRATION_TIMEOUT_SECONDS))
+
+echo "Waiting for migration job to complete (up to ${MIGRATION_TIMEOUT_SECONDS}s)..."
 while true; do
+    if [ "$SECONDS" -ge "$MIGRATION_DEADLINE" ]; then
+        echo "Error: Migration job didn't finish within ${MIGRATION_TIMEOUT_SECONDS}s; the Container App was not updated"
+        echo "az containerapp job execution show --name $MIGRATION_JOB --resource-group $RESOURCE_GROUP --job-execution-name $MIGRATION_EXECUTION_NAME"
+        exit 1
+    fi
+
     MIGRATION_STATUS=$(az containerapp job execution show \
         --name "$MIGRATION_JOB" \
         --resource-group "$RESOURCE_GROUP" \

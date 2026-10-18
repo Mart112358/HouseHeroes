@@ -23,6 +23,19 @@ public class RegistrationTests(ApiFactory factory) : ApiTestBase(factory)
     private static string NewEntraUserId() => $"entra-new-{Guid.NewGuid()}";
 
     [Fact]
+    public async System.Threading.Tasks.Task Registering_several_times_at_once_creates_one_user()
+    {
+        var entraUserId = NewEntraUserId();
+
+        var responses = await System.Threading.Tasks.Task.WhenAll(Enumerable.Range(0, 5).Select(_ => GraphQL.ExecuteAsync(
+            "mutation { registerNewUser(input: { createNewFamily: true }) { success } }", asEntraUserId: entraUserId)));
+
+        var successes = responses.Select(r => r.AssertNoErrors().Data.GetProperty("registerNewUser").GetProperty("success").GetBoolean());
+        Assert.Single(successes, success => success);
+        Assert.Equal(1, await Data.QueryAsync(db => db.Users.CountAsync(u => u.EntraUserId == entraUserId)));
+    }
+
+    [Fact]
     public async System.Threading.Tasks.Task Guardian_creates_an_invite_for_their_family()
     {
         var family = await Data.CreateFamilyAsync();

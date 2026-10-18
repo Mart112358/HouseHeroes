@@ -22,6 +22,6 @@ public static class CallerGuards
     public static void EnsureGuardian(this User user)
     {
         if (user.Role != UserRole.Guardian)
-            throw GraphQLErrors.Forbidden("Only guardians can manage tasks.");
+            throw GraphQLErrors.Forbidden("Only parents can do this.");
     }
 }

@@ -16,6 +16,13 @@ public class TaskEditingTests(ApiFactory factory) : ApiTestBase(factory)
         }
         """;
 
+    private const string UpdateAssignees =
+        """
+        mutation($taskId: UUID!, $assigneeIds: [UUID!]) {
+          updateTask(input: { taskId: $taskId, title: "Walk the dog", assigneeIds: $assigneeIds }) { id }
+        }
+        """;
+
     private const string UnassignTask =
         "mutation($taskId: UUID!, $userId: UUID!) { unassignTask(input: { taskId: $taskId, userId: $userId }) }";
 
@@ -66,6 +73,47 @@ public class TaskEditingTests(ApiFactory factory) : ApiTestBase(factory)
 
         response.AssertErrorCode("NOT_FOUND");
         Assert.Equal("Test task", await Data.QueryAsync(db => db.Tasks.Where(t => t.Id == theirTask.Id).Select(t => t.Title).SingleAsync()));
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task Guardian_replaces_a_tasks_assignees_with_its_details()
+    {
+        var family = await Data.CreateFamilyAsync();
+        var task = await Data.CreateTaskAsync(family, family.Child);
+
+        var response = await GraphQL.ExecuteAsync(UpdateAssignees, new { taskId = task.Id, assigneeIds = new[] { family.Guardian.Id } }, family.Guardian.EntraUserId);
+
+        response.AssertNoErrors();
+        var assignees = await Data.QueryAsync(db => db.TaskAssignments.Where(a => a.TaskId == task.Id).Select(a => a.UserId).ToListAsync());
+        Assert.Equal([family.Guardian.Id], assignees);
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task Updating_without_assignees_keeps_them()
+    {
+        var family = await Data.CreateFamilyAsync();
+        var task = await Data.CreateTaskAsync(family, family.Child);
+
+        var response = await GraphQL.ExecuteAsync(UpdateTask, new { taskId = task.Id, dueDate = (DateTime?)null }, family.Guardian.EntraUserId);
+
+        response.AssertNoErrors();
+        var assignees = await Data.QueryAsync(db => db.TaskAssignments.Where(a => a.TaskId == task.Id).Select(a => a.UserId).ToListAsync());
+        Assert.Equal([family.Child.Id], assignees);
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task Updating_with_another_familys_member_changes_nothing()
+    {
+        var mine = await Data.CreateFamilyAsync();
+        var theirs = await Data.CreateFamilyAsync();
+        var task = await Data.CreateTaskAsync(mine, mine.Child);
+
+        var response = await GraphQL.ExecuteAsync(UpdateAssignees, new { taskId = task.Id, assigneeIds = new[] { theirs.Child.Id } }, mine.Guardian.EntraUserId);
+
+        response.AssertErrorCode("NOT_FOUND");
+        Assert.Equal("Test task", await Data.QueryAsync(db => db.Tasks.Where(t => t.Id == task.Id).Select(t => t.Title).SingleAsync()));
+        var assignees = await Data.QueryAsync(db => db.TaskAssignments.Where(a => a.TaskId == task.Id).Select(a => a.UserId).ToListAsync());
+        Assert.Equal([mine.Child.Id], assignees);
     }
 
     [Fact]

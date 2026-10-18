@@ -231,6 +231,7 @@ input UpdateTaskInput {
   title: String!
   description: String
   dueDate: DateTime
+  assigneeIds: [UUID!]
 }
 
 input UserFilterInput {

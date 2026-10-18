@@ -35,22 +35,8 @@ mutation CreateTask($input: CreateTaskInput!) {
 
 mutation UpdateTask($input: UpdateTaskInput!) {
   updateTask(input: $input) {
-    id
-    title
-    description
-    dueDate
+    ...TaskFields
   }
-}
-
-mutation AssignTask($input: AssignTaskInput!) {
-  assignTask(input: $input) {
-    taskId
-    userId
-  }
-}
-
-mutation UnassignTask($input: AssignTaskInput!) {
-  unassignTask(input: $input)
 }
 
 mutation CompleteTask($taskId: UUID!) {

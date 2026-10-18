@@ -20,10 +20,7 @@ public class Mutation
         var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
         user.EnsureGuardian();
 
-        var assigneeIds = input.AssigneeIds?.Distinct().ToList() ?? [];
-        var familyAssigneeCount = await context.Users.CountAsync(u => assigneeIds.Contains(u.Id) && u.FamilyId == user.FamilyId);
-        if (familyAssigneeCount != assigneeIds.Count)
-            throw GraphQLErrors.NotFound("Family member not found.");
+        var assigneeIds = await GetFamilyMemberIdsAsync(context, user.FamilyId, input.AssigneeIds ?? []);
 
         var task = new Models.Task
         {
@@ -54,7 +51,9 @@ public class Mutation
         var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
         user.EnsureGuardian();
 
-        var task = await context.Tasks.FirstOrDefaultAsync(t => t.Id == input.TaskId && t.FamilyId == user.FamilyId);
+        var task = await context.Tasks
+            .Include(t => t.TaskAssignments)
+            .FirstOrDefaultAsync(t => t.Id == input.TaskId && t.FamilyId == user.FamilyId);
         if (task == null)
             throw GraphQLErrors.NotFound("Task not found.");
 
@@ -62,9 +61,31 @@ public class Mutation
         task.Description = input.Description;
         task.DueDate = input.DueDate;
 
+        // Null leaves the assignees as they are; a list replaces them
+        if (input.AssigneeIds != null)
+        {
+            var assigneeIds = await GetFamilyMemberIdsAsync(context, user.FamilyId, input.AssigneeIds);
+            context.TaskAssignments.RemoveRange(task.TaskAssignments.Where(a => !assigneeIds.Contains(a.UserId)));
+            foreach (var id in assigneeIds.Where(id => task.TaskAssignments.All(a => a.UserId != id)))
+                task.TaskAssignments.Add(new TaskAssignment { TaskId = task.Id, UserId = id });
+        }
+
         await context.SaveChangesAsync();
 
         return task;
+    }
+
+    // The distinct IDs, after checking they are all members of the family
+    private static async System.Threading.Tasks.Task<List<Guid>> GetFamilyMemberIdsAsync(
+        AppDbContext context,
+        Guid familyId,
+        IEnumerable<Guid> userIds)
+    {
+        var ids = userIds.Distinct().ToList();
+        if (await context.Users.CountAsync(u => ids.Contains(u.Id) && u.FamilyId == familyId) != ids.Count)
+            throw GraphQLErrors.NotFound("Family member not found.");
+
+        return ids;
     }
 
     [Authorize]
@@ -207,14 +228,7 @@ public class Mutation
         // Check if user already exists
         var existingUser = await userService.GetCurrentUserAsync(claimsPrincipal);
         if (existingUser != null)
-        {
-            return new RegisterNewUserResult 
-            { 
-                Success = false, 
-                Message = "User already registered",
-                User = existingUser
-            };
-        }
+            return AlreadyRegistered(existingUser);
 
         // Create a family, or join one with an invite
         Family family;
@@ -273,6 +287,16 @@ public class Mutation
             // Someone else used the invite since we read it (UsedAt is a concurrency token)
             return InvalidInvite();
         }
+        catch (DbUpdateException)
+        {
+            // A concurrent request (e.g. a double tap) registered this user first: EntraUserId is unique
+            context.ChangeTracker.Clear();
+            existingUser = await userService.GetCurrentUserAsync(claimsPrincipal);
+            if (existingUser == null)
+                throw;
+
+            return AlreadyRegistered(existingUser);
+        }
 
         return new RegisterNewUserResult 
         { 
@@ -282,6 +306,13 @@ public class Mutation
             Family = family
         };
     }
+
+    private static RegisterNewUserResult AlreadyRegistered(User user) => new()
+    {
+        Success = false,
+        Message = "User already registered",
+        User = user
+    };
 
     private static RegisterNewUserResult InvalidInvite() => new()
     {
@@ -301,7 +332,8 @@ public record UpdateTaskInput(
     Guid TaskId,
     string Title,
     string? Description,
-    DateTime? DueDate);
+    DateTime? DueDate,
+    IReadOnlyList<Guid>? AssigneeIds);
 
 public record AssignTaskInput(
     Guid TaskId,

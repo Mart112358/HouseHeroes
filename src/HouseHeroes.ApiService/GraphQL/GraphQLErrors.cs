@@ -13,6 +13,10 @@ public static class GraphQLErrors
 
     public static GraphQLException NotFound(string message) => Create(message, "NOT_FOUND");
 
+    // Someone else changed the same records at the same time; retrying is safe
+    public static GraphQLException Conflict() =>
+        Create("Your family changed while saving. Please try again.", "CONFLICT");
+
     private static GraphQLException Create(string message, string code) =>
         new(ErrorBuilder.New().SetMessage(message).SetCode(code).Build());
 }

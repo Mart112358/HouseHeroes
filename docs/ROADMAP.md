@@ -52,8 +52,8 @@ PRD flow 1: create an account, create a family, add members.
 
 PRD flows 2, 3 and 5.
 
-- [x] API: `updateTask`, `unassignTask`, `reopenTask`, and `createTask` with `assigneeIds`; `myTasks` filtering and sorting (by member, status, due date) tested to stay within the family
-- [x] Task list: mine or everyone, to do or done, soonest due first, overdue highlighted
+- [x] API: `updateTask` and `createTask` with `assigneeIds` (an edit saves details and assignees in one call), `unassignTask`, `reopenTask`; `myTasks` filtering and sorting (by member, status, due date) tested to stay within the family
+- [x] Task list (PRD: "by date/member/status", "daily/weekly task list by member"): everyone or one member, to do or done, grouped into Overdue, Today, Tomorrow, This week, Later and No due date
 - [x] Create and edit task screen: title, description, due date, assign one or more members
 - [x] Children's view: "My tasks", mark complete
 - [x] Guardians' view: the whole family's tasks with completion status

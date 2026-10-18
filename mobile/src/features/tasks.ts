@@ -2,7 +2,8 @@ import type { TaskFieldsFragment, UserRole } from '@/graphql/generated/graphql';
 
 export type Task = TaskFieldsFragment;
 export type Viewer = { id: string; role: UserRole };
-export type TaskScope = 'mine' | 'family';
+// Whose tasks to show: a member's ID, or everyone in the family
+export type TaskOwner = string | 'everyone';
 export type TaskStatus = 'open' | 'done';
 
 export const isGuardian = (viewer: Viewer) => viewer.role === 'GUARDIAN';
@@ -17,8 +18,8 @@ export function canComplete(task: Task, viewer: Viewer): boolean {
 }
 
 // Open tasks soonest first (undated last); done tasks most recently completed first
-export function visibleTasks(tasks: readonly Task[], { scope, status, viewer }: { scope: TaskScope; status: TaskStatus; viewer: Viewer }): Task[] {
-  const inScope = tasks.filter((task) => scope === 'family' || isAssignedTo(task, viewer.id));
+export function visibleTasks(tasks: readonly Task[], { owner, status }: { owner: TaskOwner; status: TaskStatus }): Task[] {
+  const inScope = tasks.filter((task) => owner === 'everyone' || isAssignedTo(task, owner));
 
   if (status === 'done') {
     return inScope
@@ -29,6 +30,33 @@ export function visibleTasks(tasks: readonly Task[], { scope, status, viewer }: 
   return inScope
     .filter((task) => !task.isCompleted)
     .sort((a, b) => (timeOf(a.dueDate, Infinity) - timeOf(b.dueDate, Infinity)) || a.title.localeCompare(b.title));
+}
+
+export type TaskSection = { title: string; data: Task[] };
+
+// Splits sorted open tasks into Overdue, Today, Tomorrow, This week, Later and No due date, keeping their order
+export function groupByDueDate(tasks: readonly Task[], now: Date = new Date()): TaskSection[] {
+  const sections: TaskSection[] = [];
+  for (const task of tasks) {
+    const title = dueGroup(task.dueDate, now);
+    const section = sections.find((s) => s.title === title);
+    if (section) section.data.push(task);
+    else sections.push({ title, data: [task] });
+  }
+  return sections;
+}
+
+function dueGroup(dueDate: string | null | undefined, now: Date): string {
+  if (!dueDate) return 'No due date';
+
+  const due = new Date(dueDate);
+  if (due.getTime() < now.getTime()) return 'Overdue';
+
+  const days = Math.round((startOfDay(due) - startOfDay(now)) / 86_400_000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  if (days < 7) return 'This week';
+  return 'Later';
 }
 
 export function dueLabel(dueDate: string | null | undefined, now: Date = new Date()): { text: string; overdue: boolean } | null {

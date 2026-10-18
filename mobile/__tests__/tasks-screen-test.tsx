@@ -3,7 +3,7 @@ import { MockedProvider } from '@apollo/client/testing/react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import TasksScreen from '@/app/(tabs)/index';
-import { CurrentUserDocument, MyTasksDocument } from '@/graphql/generated/graphql';
+import { CurrentUserDocument, FamilyMembersDocument, MyTasksDocument } from '@/graphql/generated/graphql';
 import { child, guardian, task } from '../test-support/factories';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
@@ -30,12 +30,31 @@ const tasksMock = {
   },
 };
 
+const member = (viewer: typeof child, firstName: string) => ({
+  __typename: 'User' as const,
+  id: viewer.id,
+  firstName,
+  lastName: 'Tester',
+  email: `${firstName.toLowerCase()}@test`,
+  role: viewer.role,
+});
+
+const membersMock = {
+  request: { query: FamilyMembersDocument },
+  result: {
+    data: {
+      myFamily: { __typename: 'Family', id: 'family-1', name: 'Testers' },
+      familyMembers: [member(guardian, 'Sarah'), member(child, 'Emma')],
+    },
+  },
+};
+
 async function renderAs(viewer: typeof child) {
   // The screen reads the viewer from the cache, as it does once the root layout has loaded it
   const cache = new InMemoryCache({ typePolicies: { TaskAssignment: { keyFields: ['taskId', 'userId'] } } });
   cache.writeQuery({ query: CurrentUserDocument, data: viewerMock(viewer).result.data });
   await render(
-    <MockedProvider mocks={[tasksMock]} cache={cache}>
+    <MockedProvider mocks={[tasksMock, membersMock]} cache={cache}>
       <TasksScreen />
     </MockedProvider>
   );
@@ -69,4 +88,16 @@ it('shows guardians the whole family and the new task button', async () => {
   expect(screen.getByText('Empty the dishwasher')).toBeOnTheScreen();
   expect(screen.getByText('Buy groceries')).toBeOnTheScreen();
   expect(screen.getByText('New task')).toBeOnTheScreen();
+});
+
+it("lets guardians see one member's tasks", async () => {
+  await renderAs(guardian);
+
+  await fireEvent.press(await screen.findByText('Emma'));
+  expect(screen.getByText('Empty the dishwasher')).toBeOnTheScreen();
+  expect(screen.queryByText('Buy groceries')).toBeNull();
+
+  await fireEvent.press(screen.getByText('Me'));
+  expect(screen.getByText('Buy groceries')).toBeOnTheScreen();
+  expect(screen.queryByText('Empty the dishwasher')).toBeNull();
 });

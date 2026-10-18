@@ -133,6 +133,36 @@ export function Segmented<T extends string>({
   );
 }
 
+// A row of single-choice pills that scrolls sideways, for option lists of any length
+export function Chips<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  const theme = useTheme();
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} accessibilityRole="tablist">
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <Pressable
+            key={option.value}
+            accessibilityRole="tab"
+            accessibilityState={{ selected }}
+            onPress={() => onChange(option.value)}
+            style={[styles.chip, { borderColor: selected ? theme.primary : theme.border, backgroundColor: selected ? theme.primary : theme.surface }]}>
+            <Text style={[styles.segmentLabel, { color: selected ? theme.onPrimary : theme.text }]}>{option.label}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 export function Message({ children, tone = 'muted' }: PropsWithChildren<{ tone?: 'muted' | 'danger' | 'success' }>) {
   const theme = useTheme();
   const color = tone === 'danger' ? theme.danger : tone === 'success' ? theme.success : theme.textMuted;
@@ -170,4 +200,6 @@ const styles = StyleSheet.create({
   segmented: { flexDirection: 'row', borderRadius: 12, borderWidth: 1, padding: 3, gap: 3 },
   segment: { flex: 1, minHeight: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   segmentLabel: { fontSize: 15, fontWeight: '600' },
+  chips: { gap: spacing.sm },
+  chip: { minHeight: 36, paddingHorizontal: spacing.md, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 });
