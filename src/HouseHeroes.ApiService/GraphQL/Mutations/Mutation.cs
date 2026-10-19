@@ -52,7 +52,7 @@ public class Mutation
         user.EnsureGuardian();
 
         var task = await context.Tasks
-            .Include(t => t.TaskAssignments)
+            .Include(t => t.TaskAssignments).ThenInclude(a => a.User)
             .FirstOrDefaultAsync(t => t.Id == input.TaskId && t.FamilyId == user.FamilyId);
         if (task == null)
             throw GraphQLErrors.NotFound("Task not found.");
@@ -75,72 +75,18 @@ public class Mutation
         return task;
     }
 
-    // The distinct IDs, after checking they are all members of the family
+    // The distinct IDs, after checking they are all members of the family. Loads the users
+    // so new assignments returned by the mutation carry their user.
     private static async System.Threading.Tasks.Task<List<Guid>> GetFamilyMemberIdsAsync(
         AppDbContext context,
         Guid familyId,
         IEnumerable<Guid> userIds)
     {
         var ids = userIds.Distinct().ToList();
-        if (await context.Users.CountAsync(u => ids.Contains(u.Id) && u.FamilyId == familyId) != ids.Count)
+        if ((await context.Users.Where(u => ids.Contains(u.Id) && u.FamilyId == familyId).ToListAsync()).Count != ids.Count)
             throw GraphQLErrors.NotFound("Family member not found.");
 
         return ids;
-    }
-
-    [Authorize]
-    public async System.Threading.Tasks.Task<TaskAssignment> AssignTask(
-        AppDbContext context,
-        [Service] IUserService userService,
-        ClaimsPrincipal claimsPrincipal,
-        AssignTaskInput input)
-    {
-        var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
-        user.EnsureGuardian();
-
-        if (!await context.Tasks.AnyAsync(t => t.Id == input.TaskId && t.FamilyId == user.FamilyId))
-            throw GraphQLErrors.NotFound("Task not found.");
-
-        if (!await context.Users.AnyAsync(u => u.Id == input.UserId && u.FamilyId == user.FamilyId))
-            throw GraphQLErrors.NotFound("Family member not found.");
-
-        var assignment = await context.TaskAssignments.FindAsync(input.TaskId, input.UserId);
-        if (assignment != null)
-            return assignment;
-
-        assignment = new TaskAssignment
-        {
-            TaskId = input.TaskId,
-            UserId = input.UserId
-        };
-
-        context.TaskAssignments.Add(assignment);
-        await context.SaveChangesAsync();
-
-        return assignment;
-    }
-
-    [Authorize]
-    public async System.Threading.Tasks.Task<bool> UnassignTask(
-        AppDbContext context,
-        [Service] IUserService userService,
-        ClaimsPrincipal claimsPrincipal,
-        AssignTaskInput input)
-    {
-        var user = await userService.GetRegisteredUserAsync(claimsPrincipal);
-        user.EnsureGuardian();
-
-        if (!await context.Tasks.AnyAsync(t => t.Id == input.TaskId && t.FamilyId == user.FamilyId))
-            throw GraphQLErrors.NotFound("Task not found.");
-
-        var assignment = await context.TaskAssignments.FindAsync(input.TaskId, input.UserId);
-        if (assignment == null)
-            return false;
-
-        context.TaskAssignments.Remove(assignment);
-        await context.SaveChangesAsync();
-
-        return true;
     }
 
     [Authorize]
@@ -253,6 +199,8 @@ public class Mutation
 
             family = await context.Families.SingleAsync(f => f.Id == invite.FamilyId);
             invite.UsedAt = DateTime.UtcNow;
+            // Conflicts with a concurrent deleteMyAccount by the family's last member
+            family.MembershipVersion++;
         }
         else
         {
@@ -334,10 +282,6 @@ public record UpdateTaskInput(
     string? Description,
     DateTime? DueDate,
     IReadOnlyList<Guid>? AssigneeIds);
-
-public record AssignTaskInput(
-    Guid TaskId,
-    Guid UserId);
 
 public record RegisterNewUserInput(
     bool CreateNewFamily,

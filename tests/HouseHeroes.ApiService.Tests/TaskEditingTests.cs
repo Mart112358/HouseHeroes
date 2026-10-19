@@ -19,12 +19,11 @@ public class TaskEditingTests(ApiFactory factory) : ApiTestBase(factory)
     private const string UpdateAssignees =
         """
         mutation($taskId: UUID!, $assigneeIds: [UUID!]) {
-          updateTask(input: { taskId: $taskId, title: "Walk the dog", assigneeIds: $assigneeIds }) { id }
+          updateTask(input: { taskId: $taskId, title: "Walk the dog", assigneeIds: $assigneeIds }) {
+            taskAssignments { user { firstName } }
+          }
         }
         """;
-
-    private const string UnassignTask =
-        "mutation($taskId: UUID!, $userId: UUID!) { unassignTask(input: { taskId: $taskId, userId: $userId }) }";
 
     private const string ReopenTask =
         "mutation($id: UUID!) { reopenTask(taskId: $id) { isCompleted completedAt } }";
@@ -81,11 +80,14 @@ public class TaskEditingTests(ApiFactory factory) : ApiTestBase(factory)
         var family = await Data.CreateFamilyAsync();
         var task = await Data.CreateTaskAsync(family, family.Child);
 
-        var response = await GraphQL.ExecuteAsync(UpdateAssignees, new { taskId = task.Id, assigneeIds = new[] { family.Guardian.Id } }, family.Guardian.EntraUserId);
+        var response = await GraphQL.ExecuteAsync(UpdateAssignees, new { taskId = task.Id, assigneeIds = new[] { family.Guardian.Id, family.Child.Id } }, family.Guardian.EntraUserId);
 
-        response.AssertNoErrors();
+        // The app shows assignees from the reply, so each one needs their user
+        var returned = response.AssertNoErrors().Data.GetProperty("updateTask").GetProperty("taskAssignments")
+            .EnumerateArray().Select(a => a.GetProperty("user").GetProperty("firstName").GetString());
+        Assert.Equal(new[] { family.Child.FirstName, family.Guardian.FirstName }.Order(), returned.Order());
         var assignees = await Data.QueryAsync(db => db.TaskAssignments.Where(a => a.TaskId == task.Id).Select(a => a.UserId).ToListAsync());
-        Assert.Equal([family.Guardian.Id], assignees);
+        Assert.Equal(new[] { family.Guardian.Id, family.Child.Id }.Order(), assignees.Order());
     }
 
     [Fact]
@@ -114,54 +116,6 @@ public class TaskEditingTests(ApiFactory factory) : ApiTestBase(factory)
         Assert.Equal("Test task", await Data.QueryAsync(db => db.Tasks.Where(t => t.Id == task.Id).Select(t => t.Title).SingleAsync()));
         var assignees = await Data.QueryAsync(db => db.TaskAssignments.Where(a => a.TaskId == task.Id).Select(a => a.UserId).ToListAsync());
         Assert.Equal([mine.Child.Id], assignees);
-    }
-
-    [Fact]
-    public async System.Threading.Tasks.Task Guardian_unassigns_a_member()
-    {
-        var family = await Data.CreateFamilyAsync();
-        var task = await Data.CreateTaskAsync(family, family.Child, family.Guardian);
-
-        var response = await GraphQL.ExecuteAsync(UnassignTask, new { taskId = task.Id, userId = family.Child.Id }, family.Guardian.EntraUserId);
-
-        Assert.True(response.AssertNoErrors().Data.GetProperty("unassignTask").GetBoolean());
-        var assignees = await Data.QueryAsync(db => db.TaskAssignments.Where(a => a.TaskId == task.Id).Select(a => a.UserId).ToListAsync());
-        Assert.Equal([family.Guardian.Id], assignees);
-    }
-
-    [Fact]
-    public async System.Threading.Tasks.Task Unassigning_someone_who_is_not_assigned_returns_false()
-    {
-        var family = await Data.CreateFamilyAsync();
-        var task = await Data.CreateTaskAsync(family);
-
-        var response = await GraphQL.ExecuteAsync(UnassignTask, new { taskId = task.Id, userId = family.Child.Id }, family.Guardian.EntraUserId);
-
-        Assert.False(response.AssertNoErrors().Data.GetProperty("unassignTask").GetBoolean());
-    }
-
-    [Fact]
-    public async System.Threading.Tasks.Task Child_cannot_unassign()
-    {
-        var family = await Data.CreateFamilyAsync();
-        var task = await Data.CreateTaskAsync(family, family.Child);
-
-        var response = await GraphQL.ExecuteAsync(UnassignTask, new { taskId = task.Id, userId = family.Child.Id }, family.Child.EntraUserId);
-
-        response.AssertErrorCode("FORBIDDEN");
-    }
-
-    [Fact]
-    public async System.Threading.Tasks.Task Cannot_unassign_on_another_familys_task()
-    {
-        var mine = await Data.CreateFamilyAsync();
-        var theirs = await Data.CreateFamilyAsync();
-        var theirTask = await Data.CreateTaskAsync(theirs, theirs.Child);
-
-        var response = await GraphQL.ExecuteAsync(UnassignTask, new { taskId = theirTask.Id, userId = theirs.Child.Id }, mine.Guardian.EntraUserId);
-
-        response.AssertErrorCode("NOT_FOUND");
-        Assert.True(await Data.QueryAsync(db => db.TaskAssignments.AnyAsync(a => a.TaskId == theirTask.Id)));
     }
 
     [Fact]

@@ -70,6 +70,33 @@ public class AccountDeletionTests(ApiFactory factory) : ApiTestBase(factory)
         Assert.False(await Data.QueryAsync(db => db.FamilyInvites.AnyAsync(i => i.FamilyId == family.Family.Id)));
     }
 
+    // Racy by nature, so it repeats: without the membership version bump on join, the delete
+    // removes the family and, through the cascade, the member who just joined
+    [Fact]
+    public async System.Threading.Tasks.Task Joining_while_the_last_member_deletes_the_family_never_loses_the_new_member()
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var family = await Data.CreateFamilyAsync();
+            await GraphQL.ExecuteAsync(
+                "mutation($userId: UUID!) { removeFamilyMember(userId: $userId) }",
+                new { userId = family.Child.Id },
+                family.Guardian.EntraUserId);
+            var invite = await Data.CreateInviteAsync(family, UserRole.Child);
+            var joinerId = $"entra-joiner-{Guid.NewGuid()}";
+
+            var responses = await System.Threading.Tasks.Task.WhenAll(
+                GraphQL.ExecuteAsync(DeleteMyAccount, asEntraUserId: family.Guardian.EntraUserId),
+                GraphQL.ExecuteAsync(
+                    "mutation($code: String!) { registerNewUser(input: { createNewFamily: false, inviteCode: $code }) { success } }",
+                    new { code = invite.Code },
+                    joinerId));
+
+            var joined = responses[1].AssertNoErrors().Data.GetProperty("registerNewUser").GetProperty("success").GetBoolean();
+            Assert.Equal(joined, await Data.QueryAsync(db => db.Users.AnyAsync(u => u.EntraUserId == joinerId)));
+        }
+    }
+
     [Fact]
     public async System.Threading.Tasks.Task After_deleting_their_account_the_user_is_no_longer_registered()
     {

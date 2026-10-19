@@ -25,8 +25,6 @@ type FamilyInvite {
 type Mutation {
   createTask(input: CreateTaskInput!): Task! @authorize @cost(weight: "10")
   updateTask(input: UpdateTaskInput!): Task! @authorize @cost(weight: "10")
-  assignTask(input: AssignTaskInput!): TaskAssignment! @authorize @cost(weight: "10")
-  unassignTask(input: AssignTaskInput!): Boolean! @authorize @cost(weight: "10")
   completeTask(taskId: UUID!): Task! @authorize @cost(weight: "10")
   reopenTask(taskId: UUID!): Task! @authorize @cost(weight: "10")
   deleteTask(taskId: UUID!): Boolean! @authorize @cost(weight: "10")
@@ -87,11 +85,6 @@ type User {
   family: Family!
   createdTasks: [Task!]!
   taskAssignments: [TaskAssignment!]!
-}
-
-input AssignTaskInput {
-  taskId: UUID!
-  userId: UUID!
 }
 
 input BooleanOperationFilterInput {

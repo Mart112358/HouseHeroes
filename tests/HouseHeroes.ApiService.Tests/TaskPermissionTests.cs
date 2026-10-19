@@ -9,9 +9,6 @@ public class TaskPermissionTests(ApiFactory factory) : ApiTestBase(factory)
     private const string CreateTask =
         """mutation { createTask(input: { title: "Empty the dishwasher", description: "Before dinner" }) { id familyId createdById title } }""";
 
-    private const string AssignTask =
-        "mutation($taskId: UUID!, $userId: UUID!) { assignTask(input: { taskId: $taskId, userId: $userId }) { taskId userId } }";
-
     [Fact]
     public async System.Threading.Tasks.Task Guardian_creates_task_in_own_family()
     {
@@ -31,41 +28,6 @@ public class TaskPermissionTests(ApiFactory factory) : ApiTestBase(factory)
         var family = await Data.CreateFamilyAsync();
 
         var response = await GraphQL.ExecuteAsync(CreateTask, asEntraUserId: family.Child.EntraUserId);
-
-        response.AssertErrorCode("FORBIDDEN");
-    }
-
-    [Fact]
-    public async System.Threading.Tasks.Task Guardian_assigns_task_to_family_member()
-    {
-        var family = await Data.CreateFamilyAsync();
-        var task = await Data.CreateTaskAsync(family);
-
-        var response = await GraphQL.ExecuteAsync(AssignTask, new { taskId = task.Id, userId = family.Child.Id }, family.Guardian.EntraUserId);
-
-        response.AssertNoErrors();
-        Assert.True(await Data.QueryAsync(db => db.TaskAssignments.AnyAsync(a => a.TaskId == task.Id && a.UserId == family.Child.Id)));
-    }
-
-    [Fact]
-    public async System.Threading.Tasks.Task Assigning_the_same_member_twice_keeps_one_assignment()
-    {
-        var family = await Data.CreateFamilyAsync();
-        var task = await Data.CreateTaskAsync(family, family.Child);
-
-        var response = await GraphQL.ExecuteAsync(AssignTask, new { taskId = task.Id, userId = family.Child.Id }, family.Guardian.EntraUserId);
-
-        response.AssertNoErrors();
-        Assert.Equal(1, await Data.QueryAsync(db => db.TaskAssignments.CountAsync(a => a.TaskId == task.Id)));
-    }
-
-    [Fact]
-    public async System.Threading.Tasks.Task Child_cannot_assign_tasks()
-    {
-        var family = await Data.CreateFamilyAsync();
-        var task = await Data.CreateTaskAsync(family);
-
-        var response = await GraphQL.ExecuteAsync(AssignTask, new { taskId = task.Id, userId = family.Child.Id }, family.Child.EntraUserId);
 
         response.AssertErrorCode("FORBIDDEN");
     }
